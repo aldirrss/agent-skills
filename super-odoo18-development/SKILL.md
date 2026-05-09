@@ -7,17 +7,15 @@ description: >
   computed field, OWL component, controller, security, migration, wizard, report, cron job,
   traceback, N+1 query, UniqueViolation, transaction error, or any mention of __manifest__,
   models/, views/, addons/, ir.rule, @api.depends, @api.onchange, fields.Many2one, search_read,
-  sudo(), with_context(). ALWAYS use alongside skill odoo-18 for deep technical reference.
+  sudo(), with_context(). Standalone skill — no additional skills required.
   Go beyond documentation — think like a senior Odoo architect.
 globs: "**/*.{py,xml,csv,js}"
 ---
 
 # Super Odoo 18 Development — Senior Architect Layer
 
-This skill provides **opinionated guidance** on top of the `odoo-18` reference skill.
-Where `odoo-18` answers "what", this skill answers **"how", "why", and "watch out"**.
-
-> Always pair with `odoo-18` for API detail. This skill focuses on judgment calls.
+This is a **standalone** senior architect skill for Odoo 18.
+It answers **"how", "why", and "watch out"** — beyond what documentation covers.
 
 ## Quick Index
 
@@ -40,6 +38,7 @@ Where `odoo-18` answers "what", this skill answers **"how", "why", and "watch ou
 | `references/architecture.md` | Module structure patterns, service layers, scalable design |
 | `references/debugging.md` | Systematic approach to tracebacks, DB errors, OWL errors |
 | `references/code-quality.md` | Review checklist, naming conventions, anti-patterns |
+| `references/odoo-18-security-guide.md` | Complete security reference — ACL, record rules, field access, pitfalls |
 
 ---
 
@@ -309,7 +308,7 @@ def webhook(self):
         return request.make_json_response({'error': 'Invalid signature'}, status=401)
 ```
 
-> For complete security guide → `odoo-18` skill → `references/odoo-18-security-guide.md`
+> For complete security guide → `references/odoo-18-security-guide.md`
 
 ---
 
