@@ -1,71 +1,71 @@
 # CLAUDE.md — senior-odoo-developer Skill
 
-## Tentang Skill Ini
+## About This Skill
 
-Skill **standalone** untuk senior Odoo architect, mencakup semua versi **14 hingga 19**.
-Tidak perlu skill tambahan — semua referensi sudah bundled.
+A **standalone** skill for senior Odoo architects, covering all versions **14 through 19**.
+No additional skills required — all references are bundled inside.
 
-## Cara Invoke
+## How to Invoke
 
 ```
 Skill("senior-odoo-developer")
 ```
 
-atau user mengetik `/senior-odoo-developer`
+or the user types `/senior-odoo-developer`
 
-## Workflow Wajib
+## Required Workflow
 
-1. **Deteksi versi** dari `__manifest__.py` sebelum berikan guidance apapun
-2. **Load `references/00-version-matrix.md`** untuk context perbedaan versi
-3. **Cek OCA** sebelum sarankan develop dari scratch (`references/12-oca-workflow.md`)
+1. **Detect version** from `__manifest__.py` before providing any guidance
+2. **Load `references/00-version-matrix.md`** for version-specific API differences
+3. **Check OCA** before suggesting building from scratch (`references/12-oca-workflow.md`)
 
-## Struktur File
+## File Structure
 
 ```
 senior-odoo-developer/
 ├── SKILL.md                       # Entry point + version dispatch
-├── CLAUDE.md                      # File ini
-├── AGENTS.md                      # Setup guide untuk agent lain
+├── CLAUDE.md                      # This file
+├── AGENTS.md                      # Setup guide for other agents
 └── references/
-    ├── 00-version-matrix.md       # ← LOAD PERTAMA setelah detect versi
+    ├── 00-version-matrix.md       # ← LOAD FIRST after version detection
     ├── 01-architecture.md         # Module structure, service layer
-    ├── 02-decision-trees.md       # Kapan pakai apa
+    ├── 02-decision-trees.md       # When to use what
     ├── 03-orm-patterns.md         # ORM, CRUD, domain, read_group
-    ├── 04-view-patterns.md        # Views dengan version-specific syntax
+    ├── 04-view-patterns.md        # Views with version-specific syntax
     ├── 05-security.md             # ACL, record rules, pitfalls
     ├── 06-performance.md          # N+1, SQL, batch, index
     ├── 07-debugging.md            # Systematic debugging workflow
     ├── 08-code-quality.md         # Review checklist, naming, anti-patterns
-    ├── 09-owl-components.md       # OWL 1.x/2.x/3.x per versi
+    ├── 09-owl-components.md       # OWL 1.x/2.x/3.x per version
     ├── 10-testing.md              # Unit test, integration, HTTP test
     ├── 11-migration.md            # Upgrade paths v14→v19
-    ├── 12-oca-workflow.md         # OCA search sebelum build
-    └── 13-pitfalls.md             # Anti-patterns per versi
+    ├── 12-oca-workflow.md         # OCA search before building
+    └── 13-pitfalls.md             # Anti-patterns per version
 ```
 
-## Kapan Load File Mana
+## When to Load Which File
 
-| User menanyakan... | Load |
+| User asks about... | Load |
 |--------------------|------|
-| Version terdeteksi | `00-version-matrix.md` (SELALU) |
-| Struktur modul, service layer | `01-architecture.md` |
-| Pilih decorator / field type | `02-decision-trees.md` |
+| Version detected | `00-version-matrix.md` (ALWAYS first) |
+| Module structure, service layer | `01-architecture.md` |
+| Choose decorator / field type | `02-decision-trees.md` |
 | ORM query, CRUD, domain | `03-orm-patterns.md` |
 | View XML, attrs, form, tree | `04-view-patterns.md` |
 | ACL, record rules, security | `05-security.md` |
-| Kode lambat, N+1, SQL | `06-performance.md` |
+| Slow code, N+1, SQL | `06-performance.md` |
 | Error, traceback, debugging | `07-debugging.md` |
 | Code review | `08-code-quality.md` |
 | OWL, component, JS | `09-owl-components.md` |
 | Test, unittest | `10-testing.md` |
 | Upgrade, migration script | `11-migration.md` |
-| Apakah ada module OCA? | `12-oca-workflow.md` |
-| Anti-pattern, jebakan | `13-pitfalls.md` |
+| OCA modules available? | `12-oca-workflow.md` |
+| Anti-patterns, traps | `13-pitfalls.md` |
 
-## Prinsip Behavior
+## Behavioral Principles
 
-- Berikan **rekomendasi tegas** — jangan false balance
-- **Version-aware** selalu — syntax yang benar untuk versi yang tepat
-- Target: **senior developer** — skip penjelasan hal dasar
-- **OCA first** — cek OCA sebelum sarankan build dari scratch
-- Gunakan bahasa yang sama dengan user (Indonesia jika user pakai Indonesia)
+- Give **opinionated recommendations** — avoid false balance
+- Always be **version-aware** — use correct syntax for the right version
+- Target audience: **senior developer** — skip basic explanations
+- **OCA first** — check OCA before suggesting building from scratch
+- Use the same language as the user (Indonesian if user uses Indonesian)

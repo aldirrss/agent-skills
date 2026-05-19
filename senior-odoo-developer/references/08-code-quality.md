@@ -1,6 +1,6 @@
 ---
 name: odoo-code-quality
-description: Code review checklist, naming conventions, dan anti-patterns untuk semua versi Odoo.
+description: Code review checklist, naming conventions, and anti-patterns for all Odoo versions.
 ---
 
 # Code Quality Checklist — All Versions
@@ -8,46 +8,46 @@ description: Code review checklist, naming conventions, dan anti-patterns untuk 
 ## Pre-Submit Checklist
 
 ### Models
-- [ ] `_name` didefinisikan (atau `_inherit` untuk extension)
-- [ ] `_description` didefinisikan — Odoo warn jika tidak ada
-- [ ] `create()` menggunakan `@api.model_create_multi` (v15+), bukan `@api.model`
-- [ ] Tidak ada `search()`, `create()`, atau `write()` di dalam for loop
-- [ ] Semua `@api.depends` mencantumkan **semua** dependency (missing = stale values)
-- [ ] `@api.onchange` TIDAK memanggil create/write/unlink
-- [ ] Deletion guard pakai `@api.ondelete(at_uninstall=False)` (v15+) atau override `unlink()`
-- [ ] Computed field yang di-search punya `store=True`
-- [ ] Loop di setiap compute method (`for rec in self:`)
+- [ ] `_name` defined (or `_inherit` for extension)
+- [ ] `_description` defined — Odoo warns if missing
+- [ ] `create()` uses `@api.model_create_multi` (v15+), not `@api.model`
+- [ ] No `search()`, `create()`, or `write()` inside for loops
+- [ ] All `@api.depends` list **every** dependency (missing = stale values)
+- [ ] `@api.onchange` does NOT call create/write/unlink
+- [ ] Deletion guard uses `@api.ondelete(at_uninstall=False)` (v15+) or override `unlink()`
+- [ ] Computed fields that are searched have `store=True`
+- [ ] Loop in every compute method (`for rec in self:`)
 
 ### Security
-- [ ] `ir.model.access.csv` ada untuk setiap model baru
-- [ ] `sudo()` ada comment alasannya
-- [ ] Tidak ada raw f-string SQL
-- [ ] Webhook memvalidasi signature
+- [ ] `ir.model.access.csv` exists for every new model
+- [ ] `sudo()` usage has a comment explaining why
+- [ ] No raw f-string SQL
+- [ ] Webhooks validate signatures
 
 ### Performance
-- [ ] `search_read()` alih-alih `search()` + `read()`
-- [ ] `mapped()` untuk ekstrak single field dari recordset
-- [ ] `filtered()` untuk filter recordset
-- [ ] Tidak ada query di loop
+- [ ] `search_read()` instead of `search()` + `read()`
+- [ ] `mapped()` to extract single fields from recordsets
+- [ ] `filtered()` to filter recordsets
+- [ ] No queries inside loops
 
 ### XML/Views
-- [ ] `noupdate="1"` pada data yang bisa diedit user
-- [ ] Security files PERTAMA di manifest `data:`
-- [ ] View tag sesuai versi (`<tree>` v14-16, `<list>` v18+)
-- [ ] Dynamic attrs sesuai versi
+- [ ] `noupdate="1"` on user-editable data
+- [ ] Security files FIRST in manifest `data:`
+- [ ] View tag matches version (`<tree>` v14-16, `<list>` v18+)
+- [ ] Dynamic attrs match version
 
 ### OWL/JS (v15+)
-- [ ] `useService('rpc')` bukan deprecated `this.rpc` (v16+)
-- [ ] Component diregister di registry yang benar
-- [ ] Props divalidasi dengan `static props = {...}`
-- [ ] Tidak ada memory leak (cleanup di onWillUnmount)
+- [ ] `useService('rpc')` not deprecated `this.rpc` (v16+)
+- [ ] Component registered in correct registry
+- [ ] Props validated with `static props = {...}`
+- [ ] No memory leaks (cleanup in onWillUnmount)
 
 ---
 
 ## Naming Conventions
 
 ```python
-# Model names: lowercase dengan dot notation
+# Model names: lowercase with dot notation
 _name = 'my.module.my.model'      # ✅
 _name = 'MyModule.MyModel'         # ❌
 
@@ -62,7 +62,7 @@ def _check_state(self): ...        # constrains
 def action_confirm(self): ...      # user-triggered action
 def _prepare_vals(self): ...       # private helper
 
-# XML IDs: snake_case, prefixed dengan module name
+# XML IDs: snake_case, prefixed with module name
 id="my_module.action_my_model"
 id="my_module.view_my_model_form"
 id="my_module.menu_my_module"
@@ -78,11 +78,11 @@ my_module_security.xml
 ## Anti-Patterns
 
 ```python
-# ❌ search() dalam loop
+# ❌ search() inside loop
 for order in orders:
     partner = self.env['res.partner'].search([('id', '=', order.partner_id.id)])
 
-# ❌ @api.model pada create (v15+)
+# ❌ @api.model on create (v15+)
 @api.model
 def create(self, vals):
     return super().create(vals)
@@ -92,35 +92,35 @@ def create(self, vals):
 def create(self, vals_list):
     return super().create(vals_list)
 
-# ❌ Missing loop di compute
+# ❌ Missing loop in compute
 @api.depends('amount')
 def _compute_tax(self):
-    self.tax = self.amount * 0.1  # hanya update self[0]!
+    self.tax = self.amount * 0.1  # only updates self[0]!
 
-# ✅ Dengan loop
+# ✅ With loop
 @api.depends('amount')
 def _compute_tax(self):
     for rec in self:
         rec.tax = rec.amount * 0.1
 
-# ❌ CRUD dalam onchange
+# ❌ CRUD in onchange
 @api.onchange('partner_id')
 def _onchange_partner(self):
-    self.env['log'].create({'msg': 'changed'})  # JANGAN
+    self.env['log'].create({'msg': 'changed'})  # DON'T
 
-# ❌ eval() pada user input
+# ❌ eval() on user input
 domain = eval(user_input)  # RCE vulnerability
 
 # ❌ f-string SQL
 self.env.cr.execute(f"SELECT * FROM table WHERE id = {user_id}")  # SQL injection
 
-# ❌ Dotted path di @api.constrains
-@api.constrains('partner_id.country_id')  # tidak valid
+# ❌ Dotted path in @api.constrains
+@api.constrains('partner_id.country_id')  # invalid
 
-# ❌ Lupa super() di override
+# ❌ Forgetting super() in override
 def write(self, vals):
     # do stuff
-    return True  # seharusnya return super().write(vals)
+    return True  # should be return super().write(vals)
 
 # ❌ Hardcode user/company ID
 if self.env.uid == 1:  # admin
@@ -140,7 +140,7 @@ class MyModel(models.Model):
     _description = 'My Model'
     _order = 'date desc, name'
 
-    # 1. Fields (dalam urutan: basic → relational → computed)
+    # 1. Fields (in order: basic → relational → computed)
     name = fields.Char(required=True)
     state = fields.Selection([...], default='draft')
     date = fields.Date(default=fields.Date.today)
@@ -178,7 +178,7 @@ class MyModel(models.Model):
     def _unlink_check(self):
         ...
 
-    # 7. Action methods (dipanggil dari views)
+    # 7. Action methods (called from views)
     def action_confirm(self):
         ...
 
@@ -195,11 +195,11 @@ class MyModel(models.Model):
 
 ---
 
-## OCA Standards (jika publish ke OCA)
+## OCA Standards (if publishing to OCA)
 
-- README.rst wajib ada
+- README.rst is required
 - Tests coverage > 80%
-- Tidak ada `print()` statement
-- Semua string translatable pakai `_()`
-- License header di setiap `.py` file: `# License LGPL-3.0 or later`
+- No `print()` statements
+- All strings translatable with `_()`
+- License header in every `.py` file: `# License LGPL-3.0 or later`
 - `pre-commit` hooks: flake8, isort, prettier, eslint

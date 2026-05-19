@@ -1,51 +1,51 @@
 # CLAUDE.md — super-odoo18-development Skill
 
-## Tentang Skill Ini
+## About This Skill
 
-Skill ini adalah **standalone senior architect layer** untuk Odoo 18.
-Tidak memerlukan skill lain — semua referensi sudah tersedia di dalam folder `references/`.
+This skill is a **standalone senior architect layer** for Odoo 18.
+No additional skills required — all references are available inside the `references/` folder.
 
-## Cara Menggunakan
+## How to Use
 
-Invoke via Skill tool di Claude Code:
+Invoke via the Skill tool in Claude Code:
 ```
 Skill("super-odoo18-development")
 ```
 
-Atau user mengetik `/super-odoo18-development` di Claude Code.
+Or the user types `/super-odoo18-development` in Claude Code.
 
-## Struktur File
+## File Structure
 
 ```
 super-odoo18-development/
-├── SKILL.md                        # Entry point — baca ini pertama
-├── CLAUDE.md                       # File ini
-├── AGENTS.md                       # Instruksi untuk agent lain
+├── SKILL.md                        # Entry point — read this first
+├── CLAUDE.md                       # This file
+├── AGENTS.md                       # Instructions for other agents
 └── references/
-    ├── decision-trees.md           # Pohon keputusan dekorator, field, dll
-    ├── pitfalls.md                 # Jebakan umum — N+1, transaksi, OWL
-    ├── architecture.md             # Pola arsitektur modul
-    ├── debugging.md                # Pendekatan sistematis debugging
-    ├── code-quality.md             # Checklist review kode
-    └── odoo-18-security-guide.md   # Panduan lengkap security Odoo 18
+    ├── decision-trees.md           # Decision trees for decorators, field types, auth
+    ├── pitfalls.md                 # Common traps — N+1, transactions, OWL, security
+    ├── architecture.md             # Module architecture patterns
+    ├── debugging.md                # Systematic debugging approach
+    ├── code-quality.md             # Code review checklist
+    └── odoo-18-security-guide.md   # Complete Odoo 18 security guide
 ```
 
-## Kapan Load File references/
+## When to Load references/ Files
 
-Jangan load semua sekaligus. Load hanya saat dibutuhkan:
+Do not load all at once. Load only when needed:
 
-| User menanyakan... | Load file ini |
-|--------------------|---------------|
-| Pilih decorator / field type | `references/decision-trees.md` |
-| Kode lambat / N+1 | `references/pitfalls.md` |
-| Struktur modul / service layer | `references/architecture.md` |
-| Ada error / traceback | `references/debugging.md` |
-| Review kode | `references/code-quality.md` |
+| User asks about... | Load this file |
+|--------------------|----------------|
+| Choose decorator / field type | `references/decision-trees.md` |
+| Slow code / N+1 | `references/pitfalls.md` |
+| Module structure / service layer | `references/architecture.md` |
+| Error / traceback | `references/debugging.md` |
+| Code review | `references/code-quality.md` |
 | ACL / record rules / XSS / injection | `references/odoo-18-security-guide.md` |
 
-## Prinsip Utama
+## Core Principles
 
-- Berikan **rekomendasi tegas** — jangan false balance
-- Fokus pada **judgment** (kapan & kenapa), bukan syntax
-- Gunakan bahasa yang sama dengan user (Indonesia jika user pakai Indonesia)
-- Skill ini untuk **senior developer** — tidak perlu jelaskan hal dasar
+- Give **opinionated recommendations** — avoid false balance
+- Focus on **judgment** (when and why), not syntax reference
+- Use the same language as the user (Indonesian if user uses Indonesian)
+- This skill targets **senior developers** — skip basic explanations

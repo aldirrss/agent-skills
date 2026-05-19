@@ -57,29 +57,29 @@ skills/odoo-16.0/
 | Writing tests | `references/odoo-16-testing-guide.md` |
 | Adding translations/localization | `references/odoo-16-translation-guide.md` |
 
-## Odoo 16 vs Odoo 17/18 — Perbedaan Kritis
+## Odoo 16 vs Odoo 17/18 — Key Differences
 
-| Aspek | Odoo 16 (INI) | Odoo 17/18 |
-|-------|--------------|------------|
+| Aspect | Odoo 16 (THIS skill) | Odoo 17/18 |
+|--------|---------------------|------------|
 | List view tag | `<tree>` ✅ | `<list>` |
 | Dynamic attributes | `attrs="{'invisible': [...]}"` ✅ | `invisible="..."` (direct) |
-| Delete validation | Override `unlink()` atau `@api.ondelete` | `@api.ondelete(at_uninstall=False)` |
+| Delete validation | Override `unlink()` or `@api.ondelete` | `@api.ondelete(at_uninstall=False)` |
 | Field aggregation | `group_operator=` ✅ | `aggregator=` |
 | SQL queries | `cr.execute("...", (param,))` ✅ | `SQL()` class |
 | read_group API | Returns list of dicts | Returns grouped recordsets |
 | Python | 3.10 | 3.12 |
-| OWL RPC | `this.rpc(...)` atau `useService('rpc')` | `useService('rpc')` only |
+| OWL RPC | `this.rpc(...)` or `useService('rpc')` | `useService('rpc')` only |
 
 ## Critical Anti-Patterns (Odoo 16)
 
 | Anti-Pattern | Why Bad | Correct Approach |
 |--------------|---------|------------------|
-| `invisible="state == 'draft'"` (inline) | Odoo 17/18 syntax — tidak valid di Odoo 16 | Gunakan `attrs="{'invisible': [('state', '=', 'draft')]}"` |
-| `SQL()` class | Belum ada di Odoo 16 (masuk Odoo 17) | `self.env.cr.execute("SELECT ... WHERE id = %s", (record_id,))` |
-| `aggregator=` pada field | Odoo 17+ syntax | Gunakan `group_operator=` |
-| `<list>` tag di views | Odoo 17+ syntax | Gunakan `<tree>` |
-| `@api.depends('partner_id')` lalu akses `partner_id.email` | N queries per record | Tambah `@api.depends('partner_id.email')` |
-| `search()` inside loop | N+1 queries | `search()` dengan domain `IN` |
+| `invisible="state == 'draft'"` (inline) | Odoo 17/18 syntax — not valid in Odoo 16 | Use `attrs="{'invisible': [('state', '=', 'draft')]}"` |
+| `SQL()` class | Not available in Odoo 16 (introduced in Odoo 17) | `self.env.cr.execute("SELECT ... WHERE id = %s", (record_id,))` |
+| `aggregator=` on field | Odoo 17+ syntax | Use `group_operator=` |
+| `<list>` tag in views | Odoo 17+ syntax | Use `<tree>` |
+| `@api.depends('partner_id')` then access `partner_id.email` | N queries per record | Add `@api.depends('partner_id.email')` |
+| `search()` inside loop | N+1 queries | `search()` with `IN` domain |
 | `create()` in loop | N INSERT statements | Batch: `create([{...}, {...}])` |
 
 ## @api Decorator Decision Tree
@@ -124,23 +124,23 @@ payments = self.env['payment'].search_read([('order_id', 'in', orders.ids)])
 ### Dynamic Visibility (Odoo 16)
 
 ```xml
-<!-- Odoo 16: gunakan attrs -->
+<!-- Odoo 16: use attrs -->
 <field name="date_end" attrs="{'invisible': [('state', '!=', 'done')], 'required': [('state', '=', 'done')]}"/>
 
-<!-- BUKAN ini (Odoo 17/18 syntax): -->
+<!-- NOT this (Odoo 17/18 syntax): -->
 <!-- <field name="date_end" invisible="state != 'done'"/> -->
 ```
 
 ### Delete Validation (Odoo 16)
 
 ```python
-# Bisa pakai @api.ondelete (tersedia sejak Odoo 15)
+# Can use @api.ondelete (available since Odoo 15)
 @api.ondelete(at_uninstall=False)
 def _unlink_if_not_draft(self):
     if any(rec.state != 'draft' for rec in self):
         raise UserError("Cannot delete non-draft records")
 
-# Atau override unlink() (masih valid di Odoo 16)
+# Or override unlink() (still valid in Odoo 16)
 def unlink(self):
     if any(rec.state != 'draft' for rec in self):
         raise UserError("Cannot delete non-draft records")
@@ -150,14 +150,14 @@ def unlink(self):
 ### SQL Queries (Odoo 16)
 
 ```python
-# Odoo 16: gunakan parameterized query langsung
+# Odoo 16: use parameterized query directly
 self.env.cr.execute(
     "SELECT id, name FROM res_partner WHERE company_id = %s",
     (company_id,)
 )
 rows = self.env.cr.fetchall()
 
-# BUKAN ini (Odoo 17+ syntax):
+# NOT this (Odoo 17+ syntax):
 # from odoo.tools import SQL
 # self.env.cr.execute(SQL("SELECT ... WHERE id = %s", record_id))
 ```

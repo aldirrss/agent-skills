@@ -1,19 +1,19 @@
 ---
 name: odoo-performance
-description: Performance optimization patterns — N+1 prevention, SQL, batch operations, caching untuk semua versi Odoo.
+description: Performance optimization patterns — N+1 prevention, SQL, batch operations, caching for all Odoo versions.
 ---
 
 # Performance — All Versions
 
-## #1 Killer: N+1 Queries di Loop
+## #1 Killer: N+1 Queries Inside Loops
 
 ```python
-# ❌ N+1: search() dalam for loop
+# ❌ N+1: search() inside for loop
 for order in orders:
     partner = self.env['res.partner'].search([('id', '=', order.partner_id.id)])
-    # → N query untuk N orders
+    # → N queries for N orders
 
-# ✅ FIX: search sekali dengan IN domain
+# ✅ FIX: search once with IN domain
 partner_ids = orders.mapped('partner_id.id')
 partners = self.env['res.partner'].browse(partner_ids)
 
@@ -24,7 +24,7 @@ for rec in records:
 # ✅ FIX: batch write
 records.write({'state': 'done'})  # 1 SQL UPDATE
 
-# ❌ N+1: create() dalam loop
+# ❌ N+1: create() inside loop
 for vals in data_list:
     self.env['my.model'].create(vals)  # N SQL INSERT
 
@@ -45,7 +45,7 @@ def _compute_invoice_count(self):
             [('partner_id', '=', rec.id)]  # N queries
         )
 
-# ✅ Agregasi sekali untuk semua
+# ✅ Aggregate once for all
 @api.depends()
 def _compute_invoice_count(self):
     domain = [('partner_id', 'in', self.ids)]
@@ -64,11 +64,11 @@ def _compute_invoice_count(self):
 ## search_read vs search + read
 
 ```python
-# ❌ Dua query terpisah
+# ❌ Two separate queries
 records = self.env['sale.order'].search(domain)
 data = records.read(['name', 'state', 'amount_total'])
 
-# ✅ Satu query
+# ✅ One query
 data = self.env['sale.order'].search_read(
     domain=domain,
     fields=['name', 'state', 'amount_total'],
@@ -78,13 +78,13 @@ data = self.env['sale.order'].search_read(
 
 ---
 
-## Raw SQL untuk Agregasi Besar
+## Raw SQL for Large Aggregations
 
 ```python
-# Gunakan raw SQL untuk:
-# - Jutaan baris
+# Use raw SQL for:
+# - Millions of rows
 # - Complex GROUP BY
-# - Cross-table aggregation tanpa ORM
+# - Cross-table aggregation without ORM
 # - Reporting queries
 
 # v14, v15, v16:
@@ -103,7 +103,7 @@ def get_sales_summary(self, date_from, date_to):
     """, (date_from, date_to))
     return self.env.cr.dictfetchall()
 
-# v17+: SQL() class lebih aman
+# v17+: SQL() class is safer
 from odoo.tools import SQL
 def get_sales_summary(self, date_from, date_to):
     self.env.cr.execute(SQL("""
@@ -122,16 +122,16 @@ def get_sales_summary(self, date_from, date_to):
 ## Index Strategy
 
 ```python
-# Tambahkan index=True pada field yang sering di-search
+# Add index=True on fields frequently searched
 class MyModel(models.Model):
     _name = 'my.model'
 
-    name = fields.Char(index=True)              # sering di-search
-    partner_id = fields.Many2one(index=True)    # FK yang sering di-join
-    state = fields.Selection(index=True)        # sering di-filter
-    date = fields.Date(index=True)              # sering di-sort/filter
+    name = fields.Char(index=True)              # frequently searched
+    partner_id = fields.Many2one(index=True)    # FK frequently joined
+    state = fields.Selection(index=True)        # frequently filtered
+    date = fields.Date(index=True)              # frequently sorted/filtered
 
-    # Composite index via _sql_constraints atau migration
+    # Composite index via _sql_constraints or migration
     _sql_constraints = [
         ('unique_ref_company', 'UNIQUE(reference, company_id)',
          'Reference must be unique per company'),
@@ -140,15 +140,15 @@ class MyModel(models.Model):
 
 ---
 
-## with_context untuk Disable Overhead
+## with_context to Disable Overhead
 
 ```python
-# Disable mail tracking untuk bulk operations
+# Disable mail tracking for bulk operations
 records.with_context(tracking_disable=True).write({'state': 'done'})
 
-# Disable recompute untuk batch import
+# Disable recompute for batch import
 records.with_context(no_recompute=True).write({'field': value})
-self.env['my.model'].recompute()  # recompute manual setelahnya
+self.env['my.model'].recompute()  # recompute manually afterwards
 
 # Disable automatic chatter
 records.with_context(mail_notrack=True).write({'partner_id': partner.id})
@@ -159,15 +159,15 @@ records.with_context(mail_notrack=True).write({'partner_id': partner.id})
 ## Prefetch & Lazy Loading
 
 ```python
-# Odoo otomatis prefetch field satu model saat browse
+# Odoo automatically prefetches fields for a model on browse
 records = self.env['my.model'].browse(ids)
-# Akses pertama records[0].name → prefetch semua name sekaligus
+# First access of records[0].name → prefetches all names at once
 
-# Force prefetch spesifik
-records._prefetch_ids  # set of IDs yang akan di-prefetch
+# Force specific prefetch
+records._prefetch_ids  # set of IDs that will be prefetched
 
-# Batasi field yang di-load
-records.read(['name', 'state'])  # hanya load 2 field
+# Limit fields to load
+records.read(['name', 'state'])  # only load 2 fields
 ```
 
 ---
@@ -178,7 +178,7 @@ records.read(['name', 'state'])  # hanya load 2 field
 # Cache ir.config_parameter
 url = self.env['ir.config_parameter'].sudo().get_param('my_module.api_url')
 
-# Cache dengan tools.cache (hati-hati: clear saat upgrade)
+# Cache with tools.cache (warning: cleared on upgrade)
 from odoo.tools import ormcache
 
 class MyModel(models.Model):
@@ -186,7 +186,7 @@ class MyModel(models.Model):
 
     @ormcache('self.env.uid', 'record_id')
     def _get_cached_data(self, record_id):
-        # data yang jarang berubah
+        # data that rarely changes
         return self.browse(record_id).expensive_compute()
 
     def _clear_cache(self):
@@ -197,12 +197,12 @@ class MyModel(models.Model):
 
 ## Performance Checklist
 
-- [ ] Tidak ada `search()` atau `create()` di dalam for loop
-- [ ] `search_read()` dipakai alih-alih `search()` + `read()`
-- [ ] Computed fields yang di-search punya `store=True`
-- [ ] `mapped()` untuk ekstrak field dari recordset (bukan list comprehension)
-- [ ] `filtered()` untuk filter recordset (bukan Python list filter)
-- [ ] Raw SQL hanya untuk agregasi yang tidak bisa efisien via ORM
-- [ ] Index pada field yang sering di-search/filter
-- [ ] `with_context(tracking_disable=True)` untuk bulk write
-- [ ] Tidak ada f-string di SQL query
+- [ ] No `search()` or `create()` inside for loops
+- [ ] `search_read()` used instead of `search()` + `read()`
+- [ ] Computed fields that are searched have `store=True`
+- [ ] `mapped()` used to extract fields from recordsets (not list comprehension)
+- [ ] `filtered()` used to filter recordsets (not Python list filter)
+- [ ] Raw SQL only for aggregations that cannot be done efficiently via ORM
+- [ ] Index on fields frequently searched/filtered
+- [ ] `with_context(tracking_disable=True)` for bulk writes
+- [ ] No f-strings in SQL queries

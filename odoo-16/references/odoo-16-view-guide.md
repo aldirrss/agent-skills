@@ -43,7 +43,7 @@ Complete reference for Odoo 16 XML views, actions, menus, and QWeb templates.
 
 | Type | XML Tag | Use For |
 |------|---------|---------|
-| `list` | `<tree>` | Table/List view (tag `<tree>` di Odoo 16) |
+| `list` | `<tree>` | Table/List view (tag `<tree>` in Odoo 16) |
 | `form` | `<form>` | Single record edit/view |
 | `search` | `<search>` | Search panel and filters |
 | `kanban` | `<kanban>` | Card-based view |
@@ -286,31 +286,31 @@ Complete reference for Odoo 16 XML views, actions, menus, and QWeb templates.
 <button name="action" attrs="{'invisible': [('state', '=', 'done')]}"/>
 ```
 
-#### ✅ GOOD: Menggunakan attrs (Odoo 16 syntax)
+#### ✅ GOOD: Using attrs (Odoo 16 syntax)
 
 ```xml
-<!-- Odoo 16: gunakan attrs dengan domain list -->
+<!-- Odoo 16: use attrs with domain lists -->
 <field name="is_company" attrs="{'invisible': [('type', '=', 'contact')]}"/>
 <field name="email" attrs="{'required': [('is_company', '=', True)]}"/>
 <field name="code" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
 <button name="action" attrs="{'invisible': [('state', '=', 'done')]}"/>
 
-<!-- Multiple kondisi dalam satu field -->
+<!-- Multiple conditions in one field -->
 <field name="date_end" attrs="{
     'invisible': [('state', 'not in', ['done', 'cancel'])],
     'required': [('state', '=', 'done')]
 }"/>
 
-<!-- Catatan: inline invisible="..." baru tersedia di Odoo 17+ -->
+<!-- Note: inline invisible="..." is only available starting in Odoo 17+ -->
 ```
 
 #### Available Dynamic Attributes (Odoo 16)
 
 | Attribute | Use For | Example |
 |-----------|---------|---------|
-| `attrs` | Kondisi invisible/readonly/required | `attrs="{'invisible': [('state', '=', 'done')]}"` |
-| `column_invisible` | Sembunyikan kolom di tree | `column_invisible="True"` |
-| `groups` | Batasi visibilitas per grup | `groups="base.group_user"` |
+| `attrs` | Conditions for invisible/readonly/required | `attrs="{'invisible': [('state', '=', 'done')]}"` |
+| `column_invisible` | Hide columns in tree view | `column_invisible="True"` |
+| `groups` | Restrict visibility by group | `groups="base.group_user"` |
 
 ### Context / Domain
 
@@ -865,31 +865,31 @@ Complete reference for Odoo 16 XML views, actions, menus, and QWeb templates.
 <button name="action" attrs="{'invisible': [('state', '=', 'done')]}"/>
 ```
 
-### ✅ GOOD: Tetap gunakan attrs (Odoo 16 — BENAR)
+### ✅ GOOD: Keep using attrs (Odoo 16 — CORRECT)
 
 ```xml
-<!-- Odoo 16: attrs adalah cara yang BENAR -->
+<!-- Odoo 16: attrs is the CORRECT way -->
 <field name="is_company" attrs="{'invisible': [('type', '=', 'contact')]}"/>
 <field name="email" attrs="{'required': [('is_company', '=', True)]}"/>
 <field name="code" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
 <button name="action" attrs="{'invisible': [('state', '=', 'done')]}"/>
 ```
 
-**Catatan Migrasi ke Odoo 17/18**: Jika upgrade ke Odoo 17+, baru ganti `attrs="{'invisible': [...]}"` ke `invisible="..."`. Tapi di Odoo 16, `attrs` adalah cara yang benar dan harus digunakan.
+**Migration Note for Odoo 17/18**: If you upgrade to Odoo 17+, then replace `attrs="{'invisible': [...]}"` with `invisible="..."`. In Odoo 16, `attrs` is the correct approach and should still be used.
 
-### ✅ GOOD: Gunakan `<tree>` tag (Odoo 16 — BENAR)
+### ✅ GOOD: Use `<tree>` tag (Odoo 16 — CORRECT)
 
 ```xml
-<!-- Odoo 16: <tree> adalah tag yang BENAR untuk list view -->
+<!-- Odoo 16: <tree> is the CORRECT tag for list views -->
 <tree string="Records">
     <field name="name"/>
 </tree>
 ```
 
-### ❌ BAD: Jangan gunakan `<list>` tag di Odoo 16
+### ❌ BAD: Do not use `<list>` tag in Odoo 16
 
 ```xml
-<!-- SALAH untuk Odoo 16 — ini syntax Odoo 17+ -->
+<!-- WRONG for Odoo 16 — this is Odoo 17+ syntax -->
 <list string="Records">
     <field name="name"/>
 </list>

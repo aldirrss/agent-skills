@@ -1,6 +1,6 @@
 ---
 name: odoo-testing
-description: Test patterns untuk unit test, integration test, dan tour test di semua versi Odoo.
+description: Test patterns for unit tests, integration tests, and tour tests across all Odoo versions.
 ---
 
 # Testing — All Versions
@@ -12,14 +12,14 @@ from odoo.tests.common import TransactionCase, SavepointCase, Form
 from odoo.tests import tagged
 from odoo.exceptions import UserError, ValidationError
 
-# TransactionCase: rollback otomatis setelah setiap test (v14+)
+# TransactionCase: automatic rollback after each test (v14+)
 @tagged('post_install', '-at_install')
 class TestMyModel(TransactionCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Setup data SEKALI untuk semua test di class ini
+        # Setup data ONCE for all tests in this class
         cls.partner = cls.env['res.partner'].create({
             'name': 'Test Partner',
             'email': 'test@example.com',
@@ -28,7 +28,7 @@ class TestMyModel(TransactionCase):
 
     def setUp(self):
         super().setUp()
-        # Setup data PER TEST (lebih lambat, tapi isolasi lebih baik)
+        # Setup data PER TEST (slower, but better isolation)
         self.record = self.env['my.model'].create({
             'name': 'Test Record',
             'partner_id': self.partner.id,
@@ -49,7 +49,7 @@ class TestMyModel(TransactionCase):
     def test_constraint_name_length(self):
         """Test validation constraint"""
         with self.assertRaises(ValidationError):
-            self.env['my.model'].create({'name': 'AB'})  # terlalu pendek
+            self.env['my.model'].create({'name': 'AB'})  # too short
 
     def test_cannot_delete_confirmed(self):
         """Test deletion restriction"""
@@ -71,7 +71,7 @@ class TestMyModel(TransactionCase):
             'name': 'Other User',
             'login': 'other@test.com',
         })
-        # Record dibuat oleh admin, other_user tidak boleh lihat
+        # Record created by admin, other_user should not see it
         record_as_other = self.record.with_user(other_user)
         with self.assertRaises(Exception):
             _ = record_as_other.name
@@ -85,7 +85,7 @@ class TestMyModel(TransactionCase):
 from odoo.tests.common import Form
 
 def test_form_flow(self):
-    """Test menggunakan Form helper — simulasi user input"""
+    """Test using Form helper — simulate user input"""
     with Form(self.env['my.model']) as form:
         form.name = 'Test via Form'
         form.partner_id = self.partner
@@ -115,12 +115,12 @@ def test_form_flow(self):
 ## Test Tags & Execution
 
 ```python
-# Tags untuk control kapan test dijalankan
-@tagged('post_install', '-at_install')  # hanya setelah install (default untuk most tests)
-@tagged('at_install')                   # saat install
-@tagged('-standard', 'slow')           # exclude dari standard, jalankan manual
+# Tags to control when tests are run
+@tagged('post_install', '-at_install')  # only after install (default for most tests)
+@tagged('at_install')                   # when installing
+@tagged('-standard', 'slow')           # exclude from standard, run manually
 
-# Jalankan test dari command line:
+# Run tests from the command line:
 # python odoo-bin test -d mydb --test-tags my_module
 # python odoo-bin test -d mydb --test-tags my_module.TestMyModel
 # python odoo-bin test -d mydb --test-tags my_module.TestMyModel.test_create_basic
@@ -134,7 +134,7 @@ def test_form_flow(self):
 from unittest.mock import patch, MagicMock
 
 def test_external_api_success(self):
-    """Test dengan mock external API"""
+    """Test with mock external API"""
     mock_response = MagicMock()
     mock_response.json.return_value = {'id': 'EXT-001', 'status': 'ok'}
     mock_response.raise_for_status.return_value = None
@@ -142,12 +142,12 @@ def test_external_api_success(self):
     with patch('requests.post', return_value=mock_response) as mock_post:
         self.record.action_send_to_external()
 
-        # Verify API dipanggil dengan benar
+        # Verify API was called correctly
         mock_post.assert_called_once()
         call_args = mock_post.call_args
         self.assertEqual(call_args.kwargs['json']['reference'], self.record.name)
 
-    # Verify hasil tersimpan
+    # Verify result was saved
     self.assertEqual(self.record.external_id, 'EXT-001')
     self.assertEqual(self.record.state, 'sent')
 
@@ -166,19 +166,19 @@ def test_external_api_timeout(self):
 
 ```python
 def test_no_n_plus_one(self):
-    """Pastikan tidak ada N+1 queries"""
-    # Buat 10 records
+    """Ensure there are no N+1 queries"""
+    # Create 10 records
     records = self.env['my.model'].create([
         {'name': f'Record {i}', 'partner_id': self.partner.id}
         for i in range(10)
     ])
 
-    # Hitung queries saat akses computed field
-    with self.assertQueryCount(1):  # harus hanya 1 query
+    # Count queries when accessing computed field
+    with self.assertQueryCount(1):  # must be only 1 query
         totals = records.mapped('amount_total')
 
 def test_batch_create_performance(self):
-    """Test batch create lebih cepat dari loop"""
+    """Test that batch create is faster than a loop"""
     import time
 
     # Batch create
@@ -188,7 +188,7 @@ def test_batch_create_performance(self):
     ])
     batch_time = time.time() - start
 
-    self.assertLess(batch_time, 2.0, "Batch create terlalu lambat")
+    self.assertLess(batch_time, 2.0, "Batch create is too slow")
 ```
 
 ---
@@ -212,7 +212,7 @@ class TestMyController(HttpCase):
         self.assertIn('result', data)
 
     def test_webhook_valid_signature(self):
-        """Test webhook dengan signature valid"""
+        """Test webhook with a valid signature"""
         import hmac, hashlib, json
         secret = 'my_secret'
         payload = json.dumps({'event': 'payment.done', 'amount': 100})

@@ -1,6 +1,6 @@
 ---
 name: odoo-orm-patterns
-description: ORM patterns, CRUD, search, domain, read_group untuk semua versi Odoo 14-19.
+description: ORM patterns, CRUD, search, domain, read_group for all Odoo versions 14-19.
 ---
 
 # ORM Patterns — All Versions
@@ -13,7 +13,7 @@ from odoo.exceptions import UserError, ValidationError
 
 class MyModel(models.Model):
     _name = 'my.model'
-    _description = 'My Model'          # Wajib — Odoo warn tanpa ini
+    _description = 'My Model'          # Required — Odoo warns without this
     _order = 'date desc, name'
     _rec_name = 'name'
 
@@ -77,10 +77,10 @@ def create(self, vals_list):
 ### Read
 
 ```python
-# Search + read (paling umum)
+# Search + read (most common)
 records = self.env['my.model'].search([('state', '=', 'draft')])
 
-# search_read (lebih efisien dari search() + read())
+# search_read (more efficient than search() + read())
 data = self.env['my.model'].search_read(
     domain=[('state', '=', 'draft')],
     fields=['name', 'state', 'amount_total'],
@@ -91,14 +91,14 @@ data = self.env['my.model'].search_read(
 # browse by ID
 record = self.env['my.model'].browse(record_id)
 
-# sudo untuk bypass ACL (gunakan dengan alasan jelas)
+# sudo to bypass ACL (use with a clear reason)
 record = self.env['my.model'].sudo().browse(record_id)
 ```
 
 ### Write & Unlink
 
 ```python
-# Batch write (1 SQL untuk semua record)
+# Batch write (1 SQL for all records)
 records.write({'state': 'confirmed'})
 
 # Override write
@@ -111,12 +111,12 @@ def write(self, vals):
 @api.ondelete(at_uninstall=False)
 def _unlink_if_draft(self):
     if any(rec.state != 'draft' for rec in self):
-        raise UserError("Hanya record Draft yang bisa dihapus.")
+        raise UserError("Only Draft records can be deleted.")
 
 # v14: override unlink
 def unlink(self):
     if any(rec.state != 'draft' for rec in self):
-        raise UserError("Hanya record Draft yang bisa dihapus.")
+        raise UserError("Only Draft records can be deleted.")
     return super().unlink()
 ```
 
@@ -158,7 +158,7 @@ records = self.env['my.model'].search(
     limit=80,
     offset=0,
     order='date desc, name asc',
-    count=False,  # True untuk hanya dapat jumlah
+    count=False,  # True to get only the count
 )
 count = self.env['my.model'].search_count(domain)
 ```
@@ -168,7 +168,7 @@ count = self.env['my.model'].search_count(domain)
 ## read_group / Aggregation
 
 ```python
-# Semua versi: read_group
+# All versions: read_group
 result = self.env['my.model'].read_group(
     domain=[('state', '=', 'done')],
     fields=['partner_id', 'amount_total:sum'],
@@ -176,7 +176,7 @@ result = self.env['my.model'].read_group(
 )
 # result: [{'partner_id': (1, 'Name'), 'amount_total': 1500.0, 'partner_id_count': 3}, ...]
 
-# v17+: _read_group (lebih powerful, returns recordsets)
+# v17+: _read_group (more powerful, returns recordsets)
 groups = self.env['my.model']._read_group(
     domain=[('state', '=', 'done')],
     groupby=['partner_id'],
@@ -207,7 +207,7 @@ self.env.lang        # current language code
 self.env.context     # current context dict
 self.env.uid         # current user ID
 
-# Sudo — dengan alasan
+# sudo — with reason
 self.sudo()          # superuser env
 self.env['model'].with_user(specific_user)  # specific user
 ```
@@ -219,13 +219,13 @@ self.env['model'].with_user(specific_user)  # specific user
 ```python
 records = self.env['my.model'].search([])
 
-# mapped — ekstrak field
+# mapped — extract fields
 names = records.mapped('name')           # list of strings
 partners = records.mapped('partner_id')  # recordset
 
 # filtered — filter recordset
 drafts = records.filtered(lambda r: r.state == 'draft')
-drafts = records.filtered('active')  # shorthand untuk boolean
+drafts = records.filtered('active')  # shorthand for boolean
 
 # sorted
 sorted_recs = records.sorted('date', reverse=True)
@@ -238,7 +238,7 @@ diff = rec1 - rec2        # difference
 
 # Exists check
 if record.exists():
-    # record tidak dihapus
+    # record was not deleted
     pass
 ```
 

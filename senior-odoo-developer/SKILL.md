@@ -13,41 +13,41 @@ globs: "**/*.{py,xml,csv,js,ts,scss}"
 
 # Senior Odoo Developer — Elite Multi-Version Skill
 
-Skill ini mencakup **Odoo 14 hingga 19** dengan pendekatan senior architect:
-judgment calls, anti-patterns, architecture, dan version-aware guidance.
+This skill covers **Odoo 14 through 19** with a senior architect approach:
+judgment calls, anti-patterns, architecture, and version-aware guidance.
 
 ---
 
-## ⚡ STEP 1 — DETEKSI VERSI (WAJIB)
+## ⚡ STEP 1 — VERSION DETECTION (REQUIRED)
 
-Sebelum memberikan apapun, baca `__manifest__.py`:
+Before providing any guidance, read `__manifest__.py`:
 
 ```python
-# Ekstrak versi dari field 'version': 'X.0.Y.Z'
-# Digit pertama = versi Odoo (14, 15, 16, 17, 18, 19)
+# Extract version from 'version': 'X.0.Y.Z' field
+# First digit = Odoo version (14, 15, 16, 17, 18, 19)
 ```
 
-Lalu load `references/00-version-matrix.md` untuk context perbedaan kritis versi tersebut.
+Then load `references/00-version-matrix.md` for critical API differences for that version.
 
 ---
 
-## ⚡ STEP 2 — CEK OCA SEBELUM BUILD
+## ⚡ STEP 2 — CHECK OCA BEFORE BUILDING
 
-Sebelum develop fitur baru, cari di:
+Before developing any new feature, search in:
 1. Odoo Community: `github.com/odoo/odoo/tree/{version}.0/addons`
 2. OCA: `github.com/OCA?q={keyword}&type=repositories`
 
-> Lihat workflow lengkap → `references/12-oca-workflow.md`
+> See full workflow → `references/12-oca-workflow.md`
 
 ---
 
-## Quick Index — Load File Sesuai Kebutuhan
+## Quick Index — Load Files as Needed
 
-| Kebutuhan | File |
-|-----------|------|
-| Perbedaan API antar versi | `references/00-version-matrix.md` |
-| Struktur modul, service layer | `references/01-architecture.md` |
-| Pilih decorator, field type, auth | `references/02-decision-trees.md` |
+| Need | File |
+|------|------|
+| API differences between versions | `references/00-version-matrix.md` |
+| Module structure, service layer | `references/01-architecture.md` |
+| Choose decorator, field type, auth | `references/02-decision-trees.md` |
 | ORM, CRUD, domain, read_group | `references/03-orm-patterns.md` |
 | Views XML, attrs vs inline | `references/04-view-patterns.md` |
 | ACL, record rules, security | `references/05-security.md` |
@@ -58,7 +58,7 @@ Sebelum develop fitur baru, cari di:
 | Unit test, integration test | `references/10-testing.md` |
 | Upgrade v14→v19, migration script | `references/11-migration.md` |
 | OCA search & integration | `references/12-oca-workflow.md` |
-| Anti-patterns per versi | `references/13-pitfalls.md` |
+| Anti-patterns per version | `references/13-pitfalls.md` |
 
 ---
 
@@ -75,16 +75,16 @@ v18 → Python 3.12, OWL 2.x, <list>, inline attrs, SQL() class, aggregator=
 v19 → Python 3.12, OWL 3.x, <list>, inline attrs, SQL() class
 ```
 
-Untuk tabel lengkap perbedaan setiap API → `references/00-version-matrix.md`
+For complete API differences per version → `references/00-version-matrix.md`
 
 ---
 
-## Golden Rules (Berlaku Semua Versi)
+## Golden Rules (All Versions)
 
-1. **Thin controllers, fat models** — business logic di model, bukan controller
-2. **No search() inside loops** — selalu batch dengan domain `IN`
-3. **store=True jika field di-search** — computed field tanpa store tidak bisa di-filter
-4. **sudo() harus ada alasannya** — jangan sudo() karena malas fix ACL
-5. **Security first** — `ir.model.access.csv` wajib untuk setiap model baru
-6. **Check OCA dulu** — jangan reinvent the wheel
-7. **Version-aware syntax** — `<tree>` di v14-16, `<list>` di v17+
+1. **Thin controllers, fat models** — business logic belongs in models, not controllers
+2. **No search() inside loops** — always batch with `IN` domain
+3. **store=True if field is searched** — computed fields without store cannot be filtered
+4. **sudo() must have a reason** — never use sudo() just to bypass ACL
+5. **Security first** — `ir.model.access.csv` required for every new model
+6. **Check OCA first** — don't reinvent the wheel
+7. **Version-aware syntax** — `<tree>` in v14-16, `<list>` in v17+

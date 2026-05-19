@@ -707,7 +707,7 @@ def get_aggregated_data(self):
     # Flush pending ORM changes
     self.flush_model(['state', 'amount'])
 
-    # Odoo 16: gunakan parameterized query langsung (SQL() class belum ada)
+    # Odoo 16: use parameterized queries directly (SQL() class is not available yet)
     self.env.cr.execute("""
         SELECT state, SUM(amount) as total
         FROM %s
@@ -731,4 +731,3 @@ def get_aggregated_data(self):
 - `odoo/addons/account_edi/models/account_edi_document.py:229` - `FOR UPDATE NOWAIT` pattern
 - `odoo/addons/website_sale/controllers/payment.py:47` - `LockNotAvailable` handling
 - PostgreSQL Documentation: Transaction Isolation, Error Codes
-

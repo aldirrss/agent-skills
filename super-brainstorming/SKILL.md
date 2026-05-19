@@ -4,9 +4,9 @@ description: >
   ELITE brainstorming and ideation skill — use this for ANY creative, architectural, or strategic
   problem-solving session. Far more powerful than basic brainstorming. Triggers on: "brainstorm",
   "think through", "help me design", "plan this", "explore ideas", "what's the best approach",
-  "rancang", "pikirkan", "bagaimana cara", "eksplorasi ide", or any request to think deeply about
+  "design this", "think it through", "how should I", "explore ideas", or any request to think deeply about
   a feature, system, product, or strategy BEFORE implementation. Also triggers when the user says
-  "super-brainstorm" or "brainstorm canggih". ALWAYS use this before writing any significant code,
+  "super-brainstorm" or "advanced brainstorming". ALWAYS use this before writing any significant code,
   architecture, or multi-step plan.
 ---
 
@@ -145,7 +145,7 @@ Success looks like: [definition of done]
 Red flags to watch: [early warning signs this is going wrong]
 ```
 
-Ask: *"Mau lanjut ke implementation plan, atau ada bagian yang mau di-revisit dulu?"*
+Ask: *"Want to continue to the implementation plan, or is there anything you'd like to revisit first?"*
 
 ---
 

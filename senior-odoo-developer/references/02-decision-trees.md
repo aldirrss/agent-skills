@@ -1,6 +1,6 @@
 ---
 name: odoo-decision-trees
-description: Decision trees untuk pilihan decorator, field type, auth, SQL vs ORM, dan architectural choices di semua versi Odoo.
+description: Decision trees for choosing decorators, field types, auth, SQL vs ORM, and architectural choices across all Odoo versions.
 ---
 
 # Decision Trees — All Versions
@@ -8,126 +8,126 @@ description: Decision trees untuk pilihan decorator, field type, auth, SQL vs OR
 ## Computed Field vs Onchange
 
 ```
-Perlu update nilai field?
-├── Harus benar di DB (bukan hanya UI) → @api.depends (computed field)
-│   ├── Perlu di-search/filter → store=True + search=...
-│   ├── Perlu bisa diedit user → tambah inverse=...
-│   └── Tergantung context → tambah @api.depends_context
-└── Feedback UI saja, tidak perlu disimpan → @api.onchange
-    ⚠️  onchange DILARANG CRUD — no create/write/unlink
-    ⚠️  onchange return value hanya untuk domain/warning, bukan persist
+Need to update a field value?
+├── Must be correct in DB (not just UI) → @api.depends (computed field)
+│   ├── Needs to be searched/filtered → store=True + search=...
+│   ├── Needs to be edited by user → add inverse=...
+│   └── Context-dependent → add @api.depends_context
+└── UI feedback only, no DB write needed → @api.onchange
+    ⚠️  onchange CANNOT do CRUD — no create/write/unlink
+    ⚠️  onchange return value is only for domain/warning, not persistence
 ```
 
 ## store=True vs store=False
 
 ```
-Computed field — perlu disimpan?
-├── Di-search dalam domain filter? → store=True (WAJIB)
-├── Dipakai di report atau export? → store=True (jauh lebih cepat)
-├── Jarang berubah, banyak record? → store=True
-├── Selalu berubah (e.g., "sekarang") → store=False
-└── Hanya tampil di form, tidak pernah di-query → store=False boleh
+Computed field — should it be stored?
+├── Searched in domain filters? → store=True (REQUIRED)
+├── Used in reports or exports? → store=True (much faster)
+├── Changes rarely, many records? → store=True
+├── Changes constantly (e.g., "now") → store=False
+└── Only shown in form, never queried → store=False is fine
 ```
 
 ## @api.constrains vs Override write/create
 
 ```
-Perlu validasi data?
-├── Constraint pada field tertentu → @api.constrains (dianjurkan)
-│   ⚠️  NO dotted paths! Hanya direct fields.
-│   ⚠️  Hanya trigger jika field tersebut ada di vals yang ditulis.
-└── Validasi apapun yang ditulis (semua field) → override write()
-    └── Panggil super() DULU, lalu validasi
+Need to validate data?
+├── Constraint on specific fields → @api.constrains (preferred)
+│   ⚠️  NO dotted paths! Only direct fields.
+│   ⚠️  Only triggers if that field is in the vals being written.
+└── Validate regardless of which fields change → override write()
+    └── Call super() FIRST, then validate
 ```
 
 ## @api.ondelete vs Override unlink()
 
 ```
-Perlu cegah penghapusan?
-├── v15+ → @api.ondelete(at_uninstall=False)  ← DIANJURKAN
-│   └── Tidak merusak proses uninstall modul
-└── v14 atau butuh logic kompleks → override unlink()
+Need to prevent deletion?
+├── v15+ → @api.ondelete(at_uninstall=False)  ← RECOMMENDED
+│   └── Does not break module uninstall process
+└── v14 or complex logic needed → override unlink()
     └── if any(rec.state != 'draft' for rec in self): raise UserError(...)
     └── return super().unlink()
 ```
 
-## sudo() — Kapan Dipakai
+## sudo() — When to Use
 
 ```
-Perlu elevated access?
-├── Di controller (public endpoint) → sudo() boleh, tapi comment alasannya
-├── Di model method → HINDARI — perbaiki ACL-nya
-├── Untuk count/check rekord terkait → sudo() boleh
-├── Untuk kirim email/notifikasi → sudo() boleh (operasi teknis)
-└── "Biar jalan dulu" → JANGAN — fix access rights-nya
+Need elevated access?
+├── In a controller (public endpoint) → sudo() OK, but comment the reason
+├── In a model method → AVOID — fix the ACL instead
+├── For counting/checking related records → sudo() OK
+├── For sending emails/notifications → sudo() OK (technical operation)
+└── "Just to make it work" → NEVER — fix the access rights
 ```
 
-## auth Type di Controllers
+## auth Type in Controllers
 
 ```
-HTTP endpoint — siapa yang boleh akses?
-├── Hanya logged-in users → auth='user' (default, aman)
-├── Halaman website publik → auth='public'
-│   └── Gunakan sudo() HANYA untuk yang diperlukan
-├── Webhook dari sistem eksternal → auth='none', csrf=False
-│   └── WAJIB validasi signature/token secara manual
+HTTP endpoint — who can access it?
+├── Only logged-in users → auth='user' (default, safe)
+├── Public website page → auth='public'
+│   └── Use sudo() ONLY for what is needed
+├── Webhook from external system → auth='none', csrf=False
+│   └── MUST validate signature/token manually
 └── Internal utility → auth='none'
 ```
 
 ## Field Type Selection
 
 ```
-Data apa yang disimpan?
-├── Teks pendek (nama, kode) → Char
-├── Teks panjang (catatan) → Text
-├── HTML terformat → Html (auto-sanitized)
+What data are you storing?
+├── Short text (name, code) → Char
+├── Long text (notes) → Text
+├── Formatted HTML → Html (auto-sanitized)
 ├── True/False → Boolean
-├── Bilangan bulat → Integer
-├── Desimal → Float
-│   └── Uang → Monetary (+ currency_id field)
-├── Tanggal saja → Date
-├── Tanggal + waktu → Datetime
-├── File/gambar kecil → Binary
-│   └── File besar → Binary(attachment=True)
-├── Pilihan tetap → Selection
-├── Link ke satu rekord → Many2one (+ ondelete='restrict'/'cascade'/'set null')
-├── Rekord anak → One2many (+ inverse_name wajib)
-├── Banyak link → Many2many
-└── v17+: Data semi-structured → Json / Properties
+├── Whole number → Integer
+├── Decimal → Float
+│   └── Money → Monetary (+ currency_id field)
+├── Date only → Date
+├── Date + time → Datetime
+├── Small file/image → Binary
+│   └── Large file → Binary(attachment=True)
+├── Fixed options → Selection
+├── Link to one record → Many2one (+ ondelete='restrict'/'cascade'/'set null')
+├── Child records → One2many (+ inverse_name required)
+├── Multiple links → Many2many
+└── v17+: Semi-structured data → Json / Properties
 ```
 
 ## ORM vs Raw SQL
 
 ```
-Perlu query database?
-├── CRUD biasa → ORM (search, create, write, unlink)
-├── Agregasi sederhana → read_group() / _read_group() v17+
-├── Agregasi kompleks / jutaan baris → Raw SQL
+Need to query the database?
+├── Standard CRUD → ORM (search, create, write, unlink)
+├── Simple aggregation → read_group() / _read_group() v17+
+├── Complex aggregation / millions of rows → Raw SQL
 │   ├── v14-v16 → cr.execute("...", (param,))
-│   └── v17+ → SQL() class atau cr.execute()
+│   └── v17+ → SQL() class or cr.execute()
 ├── Cross-model aggregation → Raw SQL
-└── Report kompleks GROUP BY → Raw SQL
-    ⚠️  JANGAN f-string SQL! Selalu parameterized.
+└── Complex GROUP BY reports → Raw SQL
+    ⚠️  NEVER use f-string SQL! Always parameterized.
 ```
 
 ## Many2one ondelete Strategy
 
 ```
-Many2one field — kalau parent dihapus?
-├── Hapus juga child (cascade) → ondelete='cascade'
-│   ⚠️  Hati-hati: bisa hapus data penting secara silent
-├── Tolak penghapusan parent → ondelete='restrict' (DEFAULT, aman)
-└── Set field ke null → ondelete='set null' (+ required=False)
+Many2one field — what happens when parent is deleted?
+├── Delete child too (cascade) → ondelete='cascade'
+│   ⚠️  Warning: can silently delete important data
+├── Reject parent deletion → ondelete='restrict' (DEFAULT, safe)
+└── Set field to null → ondelete='set null' (+ required=False)
 ```
 
 ## Mixin Selection
 
 ```
-Perlu fitur?
-├── Chatter / tracking perubahan → _inherit = ['mail.thread', 'mail.activity.mixin']
-├── Hanya tracking tanpa chatter → _inherit = 'mail.thread' saja
-├── Nomor sequence otomatis → _inherit = 'ir.sequence'
-│   └── Atau gunakan ir.sequence di data XML
+Need a feature?
+├── Chatter / change tracking → _inherit = ['mail.thread', 'mail.activity.mixin']
+├── Tracking only, no chatter → _inherit = 'mail.thread' only
+├── Automatic sequence numbers → _inherit = 'ir.sequence'
+│   └── Or use ir.sequence in data XML
 ├── Portal access → _inherit = 'portal.mixin'
 └── Rating → _inherit = 'rating.mixin'
 ```
@@ -135,10 +135,10 @@ Perlu fitur?
 ## When to Create New Module vs Inherit
 
 ```
-Fitur baru — module baru atau extend existing?
-├── Fitur independen yang bisa ON/OFF sendiri → module baru
-├── Ekstensi kecil dari modul existing → inherit di modul existing atau glue module
-├── Integrasi dua modul → glue module baru yang depends keduanya
-└── Modifikasi core Odoo → JANGAN — inherit dan override saja
-    ⚠️  Jangan pernah edit file di addons/ Odoo langsung
+New feature — new module or extend existing?
+├── Independent feature that can be toggled ON/OFF → new module
+├── Small extension to existing module → inherit in existing or glue module
+├── Integration of two modules → new glue module that depends on both
+└── Modify Odoo core → NEVER — only inherit and override
+    ⚠️  Never edit files in Odoo's addons/ directory directly
 ```

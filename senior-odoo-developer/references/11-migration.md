@@ -1,6 +1,6 @@
 ---
 name: odoo-migration
-description: Migration scripts, upgrade paths, dan breaking changes antar versi Odoo 14-19.
+description: Migration scripts, upgrade paths, and breaking changes between Odoo versions 14-19.
 ---
 
 # Migration Guide — v14 to v19
@@ -10,52 +10,52 @@ description: Migration scripts, upgrade paths, dan breaking changes antar versi 
 ```python
 # migrations/16.0.1.1.0/pre-migrate.py
 def migrate(cr, version):
-    """Jalankan SEBELUM module di-load (pre-migrate)"""
+    """Run BEFORE the module is loaded (pre-migrate)"""
     if not version:
         return  # fresh install, skip
-    # Rename column, hapus constraint lama, dll
+    # Rename column, drop old constraint, etc.
     cr.execute("ALTER TABLE my_model RENAME COLUMN old_field TO new_field")
 
 # migrations/16.0.1.1.0/post-migrate.py
 from odoo import api, SUPERUSER_ID
 
 def migrate(cr, version):
-    """Jalankan SETELAH module di-load (post-migrate)"""
+    """Run AFTER the module is loaded (post-migrate)"""
     if not version:
         return
     env = api.Environment(cr, SUPERUSER_ID, {})
-    # Isi data, recompute, update records
+    # Fill data, recompute, update records
     records = env['my.model'].search([('new_field', '=', False)])
     records.write({'new_field': 'default_value'})
 ```
 
 ---
 
-## Breaking Changes Per Versi
+## Breaking Changes Per Version
 
 ### v14 → v15
 
 ```python
-# @api.multi DIHAPUS (sudah deprecated di v14)
-# ❌ v14 masih jalan:
+# @api.multi REMOVED (was deprecated in v14)
+# ❌ v14 still works:
 @api.multi
 def action_do(self):
     for rec in self:
         pass
 
-# ✅ v15+: tanpa decorator
+# ✅ v15+: without decorator
 def action_do(self):
     for rec in self:
         pass
 
-# create() — ganti ke model_create_multi
+# create() — switch to model_create_multi
 @api.model_create_multi
 def create(self, vals_list):
     return super().create(vals_list)
 
-# OWL: pindah ke v15 module system
-# Ganti: odoo.define('module.Widget', ...) 
-# Ke: /** @odoo-module **/ + import statements
+# OWL: switch to v15 module system
+# Change: odoo.define('module.Widget', ...) 
+# To: /** @odoo-module **/ + import statements
 ```
 
 ### v15 → v16
@@ -64,82 +64,82 @@ def create(self, vals_list):
 # Python upgrade: 3.8/3.9 → 3.10
 # OWL upgrade: 1.x → 2.x
 
-# OWL 2: hooks cara pakai berubah
+# OWL 2: hooks usage changed
 # v15 (OWL 1):
 const { useState, useRef } = owl.hooks;
 # v16 (OWL 2):
 import { useState, useRef } from "@odoo/owl";
 
-# this.rpc deprecated di v16
+# this.rpc deprecated in v16
 # ❌ v15 style:
 await this.rpc({ model: 'x', method: 'y', args: [] });
 # ✅ v16+:
 const rpc = useService("rpc");
 await rpc("/web/dataset/call_kw", {...});
-# Atau lebih clean:
+# Or more cleanly:
 const orm = useService("orm");
 await orm.call("x", "y", []);
 
-# @api.ondelete tersedia stabil di v15+
+# @api.ondelete stably available in v15+
 @api.ondelete(at_uninstall=False)
 def _unlink_check(self):
     if self.state != 'draft':
         raise UserError("...")
 
-# make_json_response tersedia di v16+
+# make_json_response available in v16+
 return request.make_json_response({'result': data})
 ```
 
 ### v16 → v17
 
 ```python
-# SQL() class tersedia
+# SQL() class available
 from odoo.tools import SQL
 query = SQL("SELECT id FROM table WHERE name = %s", name)
 
-# Json dan Properties field baru
+# New Json and Properties fields
 json_data = fields.Json(string='Data')
 properties = fields.Properties(string='Properties',
                                definition='model_id.property_definition')
 
-# _read_group API baru (lebih powerful)
+# New _read_group API (more powerful)
 groups = self.env['my.model']._read_group(
     domain=[],
     groupby=['partner_id'],
     aggregates=['amount_total:sum', '__count'],
 )
 
-# View: transisi ke inline attrs (kedua masih valid)
-# Chatter: mulai pakai <chatter/> tag
+# View: transition to inline attrs (both still valid)
+# Chatter: start using <chatter/> tag
 ```
 
 ### v17 → v18
 
 ```python
-# <list> tag menggantikan <tree>
+# <list> tag replaces <tree>
 # ❌ v17-:
 # <tree string="Records">
 # ✅ v18+:
 # <list string="Records">
 
-# aggregator= menggantikan group_operator=
+# aggregator= replaces group_operator=
 # ❌:
 amount = fields.Float(group_operator='sum')
 # ✅:
 amount = fields.Float(aggregator='sum')
 
-# Inline attrs DIANJURKAN (attrs= masih valid tapi deprecated)
+# Inline attrs RECOMMENDED (attrs= still valid but deprecated)
 # ✅ v18 style:
 # <field name="date_end" invisible="state != 'done'" required="state == 'done'"/>
 
-# Chatter: WAJIB pakai <chatter/> tag (bukan <div class="oe_chatter">)
+# Chatter: MUST use <chatter/> tag (not <div class="oe_chatter">)
 ```
 
 ### v18 → v19
 
 ```python
-# OWL 3.x: functional components tersedia
-# Class components masih valid tapi deprecated
+# OWL 3.x: functional components available
+# Class components still valid but deprecated
 
 # OWL 3 functional component:
 import { Component, useState } from "@odoo/owl";
@@ -149,7 +149,7 @@ function MyWidget(props) {
     return <div onClick={() => state.count++}>{state.count}</div>;
 }
 
-# Python: 3.12+ features tersedia
+# Python: 3.12+ features available
 ```
 
 ---
@@ -165,10 +165,10 @@ def migrate(cr, version):
     """)
 ```
 
-### Add Column dengan Default
+### Add Column with Default
 ```python
 def migrate(cr, version):
-    # Cek apakah column sudah ada (idempotent)
+    # Check if column already exists (idempotent)
     cr.execute("""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = 'my_model' AND column_name = 'new_field'
@@ -186,7 +186,7 @@ from odoo import api, SUPERUSER_ID
 def migrate(cr, version):
     env = api.Environment(cr, SUPERUSER_ID, {})
 
-    # Bulk update via SQL (lebih cepat untuk banyak records)
+    # Bulk update via SQL (faster for many records)
     cr.execute("""
         UPDATE my_model
         SET new_state = CASE
@@ -196,32 +196,32 @@ def migrate(cr, version):
         END
     """)
 
-    # Atau via ORM untuk trigger compute/onchange
+    # Or via ORM to trigger compute/onchange
     records = env['my.model'].search([('state', '=', False)])
     records.write({'state': 'draft'})
 ```
 
-### Drop Constraint Lama
+### Drop Old Constraint
 ```python
 def migrate(cr, version):
-    # Drop constraint sebelum ubah column
+    # Drop constraint before changing column
     cr.execute("""
         ALTER TABLE my_model
         DROP CONSTRAINT IF EXISTS my_model_name_uniq
     """)
-    # Nanti di model baru akan ada constraint baru
+    # The new model will have a new constraint
 ```
 
 ---
 
-## Checklist Upgrade
+## Upgrade Checklist
 
-- [ ] Baca official upgrade notes di odoo.com/documentation
-- [ ] Cek OpenUpgrade (OCA) untuk script community
-- [ ] Test di staging DULU sebelum production
-- [ ] Backup database sebelum upgrade
-- [ ] Cek semua custom module dependencies
-- [ ] Update `version` di manifest ke versi baru
-- [ ] Update syntax yang deprecated (lihat breaking changes di atas)
-- [ ] Jalankan: `odoo-bin -u my_module -d mydb`
-- [ ] Jalankan semua tests: `odoo-bin test -d mydb --test-tags my_module`
+- [ ] Read official upgrade notes at odoo.com/documentation
+- [ ] Check OpenUpgrade (OCA) for community scripts
+- [ ] Test on staging FIRST before production
+- [ ] Backup database before upgrading
+- [ ] Check all custom module dependencies
+- [ ] Update `version` in manifest to new version
+- [ ] Update deprecated syntax (see breaking changes above)
+- [ ] Run: `odoo-bin -u my_module -d mydb`
+- [ ] Run all tests: `odoo-bin test -d mydb --test-tags my_module`

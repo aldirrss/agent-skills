@@ -449,7 +449,7 @@ def get_statistics(self):
     return dict(self.env.cr.fetchall())
 ```
 
-**Gunakan parameterized query untuk keamanan** (Odoo 16):
+**Use parameterized queries for security** (Odoo 16):
 ```python
 def get_statistics(self):
     self.env.cr.execute("""
@@ -483,8 +483,8 @@ def get_order_totals(self):
     """, ('done',))
     return self.env.cr.dictfetchall()
 
-# Catatan: SQL() class baru tersedia di Odoo 17+
-# Di Odoo 16 selalu gunakan cr.execute() dengan tuple params
+# Note: SQL() class is only available starting in Odoo 17+
+# In Odoo 16, always use cr.execute() with tuple params
 ```
 
 ---

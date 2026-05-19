@@ -1,47 +1,47 @@
 ---
 name: odoo-oca-workflow
-description: Workflow pencarian OCA sebelum develop, cara depend ke OCA module, dan integrasi OCA patterns.
+description: OCA search workflow before development, how to depend on OCA modules, and OCA pattern integration.
 ---
 
 # OCA Workflow — Search Before Build
 
-## Prinsip: Don't Reinvent the Wheel
+## Principle: Don't Reinvent the Wheel
 
-**Sebelum develop apapun**, lakukan pencarian ini secara berurutan:
+**Before developing anything**, perform these searches in order:
 
-### 1. Cari di Odoo Core
+### 1. Search in Odoo Core
 ```
 github.com/odoo/odoo/tree/{version}.0/addons
-github.com/odoo/enterprise (jika ada akses)
+github.com/odoo/enterprise (if you have access)
 ```
 
-### 2. Cari di OCA
+### 2. Search in OCA
 ```
-# Browse semua repo OCA:
+# Browse all OCA repos:
 github.com/orgs/OCA/repositories
 
 # Search by keyword:
 github.com/OCA?q={keyword}&type=repositories
 
-# Contoh:
+# Examples:
 github.com/OCA?q=sale+discount&type=repositories
 github.com/OCA?q=stock+barcode&type=repositories
 ```
 
-### 3. Keputusan
+### 3. Decision
 
 ```
-Ditemukan di Odoo core?
-  → Inherit/extend, JANGAN duplikasi
+Found in Odoo core?
+  → Inherit/extend, DO NOT duplicate
 
-Ditemukan di OCA + versi kompatibel?
-  → Depend ke OCA module, atau gunakan sebagai referensi pattern
+Found in OCA + compatible version?
+  → Depend on OCA module, or use as pattern reference
 
-Ditemukan tapi versi beda?
-  → Port atau inherit dengan hati-hati
+Found but different version?
+  → Port or inherit carefully
 
-Tidak ditemukan?
-  → Baru develop dari scratch
+Not found?
+  → Develop from scratch
 ```
 
 ---
@@ -68,12 +68,12 @@ Tidak ditemukan?
 
 ---
 
-## Cara Depend ke OCA Module
+## How to Depend on OCA Modules
 
 ### 1. Install via pip (development)
 ```bash
 pip install odoo14-addon-sale_discount_display_amount
-# atau
+# or
 pip install odoo-addon-sale_discount_display_amount==16.0.*
 ```
 
@@ -99,41 +99,41 @@ odoo-addon-stock-picking-back2draft==16.0.1.0.0
 
 ---
 
-## Cara Gunakan OCA sebagai Pattern Reference
+## Using OCA as a Pattern Reference
 
-Bahkan jika tidak depend langsung, OCA code adalah referensi terbaik untuk:
+Even without directly depending on it, OCA code is the best reference for:
 
 ```
-# Pola yang bagus untuk dipelajari dari OCA:
+# Good patterns to learn from OCA:
 - OCA/server-tools: base_setup_* modules
-- OCA/sale-workflow: sale_order_* untuk order workflow
-- OCA/account-financial-tools: account_* untuk accounting patterns
-- OCA/stock-logistics-workflow: stock_* untuk inventory patterns
+- OCA/sale-workflow: sale_order_* for order workflow patterns
+- OCA/account-financial-tools: account_* for accounting patterns
+- OCA/stock-logistics-workflow: stock_* for inventory patterns
 ```
 
 ---
 
-## OCA Code Standards (jika kontribusi)
+## OCA Code Standards (if contributing)
 
 ```python
-# License header wajib
+# License header required
 # Copyright YYYY Author Name <email>
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0)
 
-# README.rst wajib dengan format OCA
-# Tidak ada print() statement
+# README.rst required in OCA format
+# No print() statements
 # pre-commit hooks: black, isort, flake8, prettier
 
 # Test coverage minimum 80%
-# Semua string translatable: _()
+# All strings translatable: _()
 ```
 
 ---
 
-## OCA Tools yang Berguna
+## Useful OCA Tools
 
 ```bash
-# OCA-port: bantu porting module ke versi baru
+# OCA-port: helps porting modules to new versions
 pip install click-odoo-contrib
 
 # Manifestoo: manage Odoo manifest dependencies
@@ -141,24 +141,24 @@ pip install manifestoo
 
 # pre-commit OCA config
 pip install pre-commit
-# setup .pre-commit-config.yaml dengan OCA hooks
+# set up .pre-commit-config.yaml with OCA hooks
 ```
 
 ---
 
-## Contoh: Cari Sebelum Build "barcode scanning"
+## Example: Search Before Building "barcode scanning"
 
 ```
 1. Search: github.com/OCA?q=barcode&type=repositories
-   → Temukan: OCA/stock-logistics-barcode
+   → Found: OCA/stock-logistics-barcode
 
-2. Cek versi: ada 16.0 branch? ✅
+2. Check version: is there a 16.0 branch? ✅
    → github.com/OCA/stock-logistics-barcode/tree/16.0
 
-3. Module yang relevan: stock_barcodes, stock_barcodes_gs1
+3. Relevant modules: stock_barcodes, stock_barcodes_gs1
 
-4. Keputusan:
-   a. Kalau fitur sudah cukup → depend ke OCA module langsung
-   b. Kalau perlu custom → inherit dari OCA module
-   c. Kalau terlalu berbeda → buat sendiri tapi pelajari pattern OCA
+4. Decision:
+   a. If features are sufficient → depend directly on the OCA module
+   b. If customization needed → inherit from the OCA module
+   c. If too different → build your own but study OCA patterns
 ```

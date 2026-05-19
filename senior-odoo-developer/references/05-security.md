@@ -1,13 +1,13 @@
 ---
 name: odoo-security
-description: Security patterns lengkap — ACL, record rules, field access, security pitfalls untuk semua versi Odoo.
+description: Complete security patterns — ACL, record rules, field access, security pitfalls for all Odoo versions.
 ---
 
 # Security — All Versions
 
 ## Access Rights (ir.model.access.csv)
 
-WAJIB untuk setiap model baru. Format:
+Required for every new model. Format:
 
 ```csv
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
@@ -17,9 +17,9 @@ access_my_model_admin,my.model.admin,model_my_model,base.group_system,1,1,1,1
 ```
 
 Rules:
-- `group_id` kosong = semua user (termasuk portal/public) — **hati-hati**
-- ACL bersifat **additive** — user dapat union dari semua grup-nya
-- Security files harus **PERTAMA** di `data:` array manifest
+- Empty `group_id` = all users (including portal/public) — **be careful**
+- ACL is **additive** — user gets the union of all their groups' access
+- Security files must be **FIRST** in the manifest `data:` array
 
 ---
 
@@ -40,7 +40,7 @@ Rules:
 ```
 
 ```python
-# Check group di code
+# Check group in code
 if self.env.user.has_group('my_module.group_my_module_manager'):
     # manager-only logic
     pass
@@ -51,7 +51,7 @@ if self.env.user.has_group('my_module.group_my_module_manager'):
 ## Record Rules (ir.rule)
 
 ```xml
-<!-- User hanya lihat rekord miliknya -->
+<!-- User can only see their own records -->
 <record id="rule_my_model_own" model="ir.rule">
     <field name="name">My Model: Own Records</field>
     <field name="model_id" ref="model_my_model"/>
@@ -63,7 +63,7 @@ if self.env.user.has_group('my_module.group_my_module_manager'):
     <field name="perm_unlink" eval="True"/>
 </record>
 
-<!-- Manager lihat semua -->
+<!-- Manager sees all records -->
 <record id="rule_my_model_all" model="ir.rule">
     <field name="name">My Model: All Records (Manager)</field>
     <field name="model_id" ref="model_my_model"/>
@@ -71,7 +71,7 @@ if self.env.user.has_group('my_module.group_my_module_manager'):
     <field name="groups" eval="[(4, ref('my_module.group_my_module_manager'))]"/>
 </record>
 
-<!-- Multi-company (global rule — berlaku untuk semua) -->
+<!-- Multi-company (global rule — applies to everyone) -->
 <record id="rule_my_model_company" model="ir.rule">
     <field name="name">My Model: Multi-company</field>
     <field name="model_id" ref="model_my_model"/>
@@ -83,9 +83,9 @@ if self.env.user.has_group('my_module.group_my_module_manager'):
 ```
 
 **⚠️ Global Rules vs Group Rules:**
-- **Global** (tanpa `groups`): SEMUA global rules harus match (intersection)
-- **Group** (dengan `groups`): SALAH SATU group rules cukup (union)
-- Dua global rules yang bertentangan → **TIDAK ADA rekord yang bisa diakses!**
+- **Global** (without `groups`): ALL global rules must match (intersection)
+- **Group** (with `groups`): ANY ONE group rule is sufficient (union)
+- Two conflicting global rules → **NO records can be accessed!**
 
 ---
 
@@ -95,7 +95,7 @@ if self.env.user.has_group('my_module.group_my_module_manager'):
 class MyModel(models.Model):
     _name = 'my.model'
 
-    name = fields.Char()                                           # semua
+    name = fields.Char()                                           # everyone
     internal_notes = fields.Text(groups='base.group_user')         # employees
     salary = fields.Float(groups='my_module.group_hr_manager')     # HR only
     secret_code = fields.Char(groups='base.group_system')          # admin only
@@ -105,22 +105,22 @@ class MyModel(models.Model):
 
 ## Security Pitfalls
 
-### 1. sudo() Berlebihan
+### 1. Excessive sudo()
 ```python
-# ❌ TRAP: sudo() tanpa alasan
-records = self.env['hr.payslip'].sudo().search([])  # expose semua payslip!
+# ❌ TRAP: sudo() without reason
+records = self.env['hr.payslip'].sudo().search([])  # exposes all payslips!
 
-# ✅ Hanya sudo untuk operasi teknis spesifik
+# ✅ Only sudo for specific technical operations
 mail_template = self.env.ref('my_module.email_template').sudo()
 mail_template.send_mail(self.id, force_send=True)
 ```
 
-### 2. eval() pada User Input
+### 2. eval() on User Input
 ```python
 # ❌ REMOTE CODE EXECUTION
 domain = eval(request.params.get('domain'))
 
-# ✅ Gunakan safe_eval atau literal_eval
+# ✅ Use safe_eval or literal_eval
 from odoo.tools.safe_eval import safe_eval
 domain = safe_eval(request.params.get('domain', '[]'))
 ```
@@ -141,7 +141,7 @@ self.env.cr.execute(SQL("SELECT id FROM table WHERE name = %s", user_input))
 
 ### 4. XSS — Unescaped Content
 ```xml
-<!-- ❌ t-raw dengan user content -->
+<!-- ❌ t-raw with user content -->
 <div t-raw="user_message"/>
 
 <!-- ✅ t-esc auto-escapes -->
@@ -149,20 +149,20 @@ self.env.cr.execute(SQL("SELECT id FROM table WHERE name = %s", user_input))
 ```
 
 ```python
-# ✅ Markup untuk HTML terstruktur
+# ✅ Markup for structured HTML
 from markupsafe import Markup
 message = Markup("<p><strong>%s</strong>: %s</p>") % (label, user_content)
 ```
 
-### 5. Webhook tanpa Validasi Signature
+### 5. Webhook Without Signature Validation
 ```python
-# ❌ Webhook terbuka tanpa validasi
+# ❌ Open webhook without validation
 @http.route('/webhook/payment', type='http', auth='none', csrf=False)
 def payment_webhook(self):
     data = request.get_json_data()
-    self._process_payment(data)  # BAHAYA!
+    self._process_payment(data)  # DANGEROUS!
 
-# ✅ Validasi signature dulu
+# ✅ Validate signature first
 @http.route('/webhook/payment', type='http', auth='none', csrf=False)
 def payment_webhook(self):
     signature = request.httprequest.headers.get('X-Signature')
@@ -175,11 +175,11 @@ def payment_webhook(self):
 
 ### 6. Public Method via RPC
 ```python
-# ❌ Semua public method bisa dipanggil via JSON-RPC
+# ❌ All public methods can be called via JSON-RPC
 def action_done(self):
-    self.write({'state': 'done'})  # siapapun bisa panggil ini!
+    self.write({'state': 'done'})  # anyone can call this!
 
-# ✅ Validasi permission
+# ✅ Validate permission
 def action_done(self):
     if not self.env.user.has_group('my_module.group_manager'):
         raise AccessError("Only managers can mark as done")
@@ -190,11 +190,11 @@ def action_done(self):
 
 ## Security Checklist
 
-- [ ] `ir.model.access.csv` ada untuk setiap model baru
-- [ ] Groups didefinisikan di XML, bukan hardcoded di code
-- [ ] Record rules ada untuk model yang punya data per-user atau per-company
-- [ ] sudo() dipakai minimal dan ada comment alasannya
-- [ ] Tidak ada raw string SQL (f-string dengan user input)
-- [ ] Webhook punya signature validation
-- [ ] Public methods yang sensitif punya permission check
-- [ ] t-esc (bukan t-raw) untuk user content di QWeb
+- [ ] `ir.model.access.csv` exists for every new model
+- [ ] Groups defined in XML, not hardcoded in code
+- [ ] Record rules exist for models with per-user or per-company data
+- [ ] sudo() used minimally with a comment explaining why
+- [ ] No raw string SQL (f-strings with user input)
+- [ ] Webhooks have signature validation
+- [ ] Sensitive public methods have permission checks
+- [ ] t-esc (not t-raw) for user content in QWeb

@@ -1,9 +1,9 @@
 ---
 name: odoo-version-matrix
-description: Tabel perbedaan kritis API Odoo versi 14 hingga 19. Load ini pertama saat version terdeteksi.
+description: Critical API differences table for Odoo versions 14 through 19. Load this first when version is detected.
 ---
 
-# Odoo Version Matrix — Perbedaan Kritis v14–v19
+# Odoo Version Matrix — Critical Differences v14–v19
 
 ## Python & Core
 
@@ -26,17 +26,17 @@ description: Tabel perbedaan kritis API Odoo versi 14 hingga 19. Load ini pertam
 | Status bar | `widget="statusbar"` | same | same | same | same | same |
 | Chatter position | `<div class="oe_chatter">` | same | same | `<chatter/>` | `<chatter/>` | `<chatter/>` |
 
-### View Syntax Examples Per Versi
+### View Syntax Examples Per Version
 
 ```xml
-<!-- v14, v15, v16: WAJIB pakai attrs -->
+<!-- v14, v15, v16: MUST use attrs -->
 <field name="date_end" attrs="{'invisible': [('state', '!=', 'done')], 'required': [('state', '=', 'done')]}"/>
 
-<!-- v17: transisi — kedua cara valid -->
+<!-- v17: transition — both are valid -->
 <field name="date_end" attrs="{'invisible': [('state', '!=', 'done')]}"/>
-<field name="date_end" invisible="state != 'done'"/>  <!-- juga valid -->
+<field name="date_end" invisible="state != 'done'"/>  <!-- also valid -->
 
-<!-- v18, v19: inline langsung -->
+<!-- v18, v19: inline directly -->
 <field name="date_end" invisible="state != 'done'" required="state == 'done'"/>
 ```
 
@@ -47,9 +47,9 @@ description: Tabel perbedaan kritis API Odoo versi 14 hingga 19. Load ini pertam
 | Feature | v14 | v15 | v16 | v17 | v18 | v19 |
 |---------|-----|-----|-----|-----|-----|-----|
 | `@api.multi` | deprecated | **REMOVED** | — | — | — | — |
-| `@api.model_create_multi` | ada | ada | ada | ada | ada | ada |
-| `@api.ondelete` | — | ada | ada | ada | ada | ada |
-| `_read_group` (new API) | — | — | — | ada | ada | ada |
+| `@api.model_create_multi` | yes | yes | yes | yes | yes | yes |
+| `@api.ondelete` | — | yes | yes | yes | yes | yes |
+| `_read_group` (new API) | — | — | — | yes | yes | yes |
 | `read_group` return | list of dicts | same | same | same | same | same |
 | `flush_recordset` | — | — | ada | ada | ada | ada |
 | `env.flush_all()` | — | — | ada | ada | ada | ada |
@@ -57,13 +57,13 @@ description: Tabel perbedaan kritis API Odoo versi 14 hingga 19. Load ini pertam
 ### create() Pattern
 
 ```python
-# v14+: single dict (legacy, masih jalan)
+# v14+: single dict (legacy, still works)
 record = self.env['model'].create({'name': 'x'})
 
 # v15+: @api.model_create_multi (preferred, handles batch)
 @api.model_create_multi
 def create(self, vals_list):
-    # vals_list adalah list of dicts
+    # vals_list is a list of dicts
     return super().create(vals_list)
 ```
 
@@ -73,17 +73,17 @@ def create(self, vals_list):
 
 | Feature | v14 | v15 | v16 | v17 | v18 | v19 |
 |---------|-----|-----|-----|-----|-----|-----|
-| Raw SQL | `cr.execute("...", (p,))` | same | same | `SQL()` class tersedia | `SQL()` preferred | same |
+| Raw SQL | `cr.execute("...", (p,))` | same | same | `SQL()` class available | `SQL()` preferred | same |
 | `SQL()` helper | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | `execute_query_dict` | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | `cr.dictfetchall()` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ```python
-# v14, v15, v16 — SATU-SATUNYA cara:
+# v14, v15, v16 — ONLY way:
 self.env.cr.execute("SELECT id FROM sale_order WHERE state = %s", ('done',))
 rows = self.env.cr.dictfetchall()
 
-# v17+ — cara baru (lebih aman):
+# v17+ — new way (safer):
 from odoo.tools import SQL
 self.env.cr.execute(SQL("SELECT id FROM sale_order WHERE state = %s", 'done'))
 rows = self.env.cr.dictfetchall()
@@ -107,9 +107,9 @@ rows = self.env.cr.dictfetchall()
 
 | Feature | v14 | v15 | v16 | v17 | v18 | v19 |
 |---------|-----|-----|-----|-----|-----|-----|
-| `ir.model.access.csv` | wajib | wajib | wajib | wajib | wajib | wajib |
+| `ir.model.access.csv` | required | required | required | required | required | required |
 | `@api.ondelete` | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `unlink()` override | ✅ | masih valid | masih valid | kurang dianjurkan | kurang dianjurkan | kurang dianjurkan |
+| `unlink()` override | ✅ | still valid | still valid | less recommended | less recommended | less recommended |
 
 ---
 

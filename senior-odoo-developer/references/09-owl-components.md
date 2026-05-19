@@ -1,6 +1,6 @@
 ---
 name: odoo-owl-components
-description: OWL component patterns per versi — OWL 1.x (v14-v15), OWL 2.x (v16-v18), OWL 3.x (v19).
+description: OWL component patterns per version — OWL 1.x (v14-v15), OWL 2.x (v16-v18), OWL 3.x (v19).
 ---
 
 # OWL Components — Per Version
@@ -64,7 +64,7 @@ export class MyWidget extends Component {
     async _loadData() {
         this.state.isLoading = true;
         try {
-            // Cara 1: orm service (lebih type-safe)
+            // Method 1: orm service (more type-safe)
             this.state.data = await this.orm.searchRead(
                 "my.model",
                 [["state", "=", "active"]],
@@ -72,7 +72,7 @@ export class MyWidget extends Component {
                 { limit: 10 }
             );
 
-            // Cara 2: rpc langsung ke method
+            // Method 2: rpc directly to method
             const result = await this.rpc("/web/dataset/call_kw", {
                 model: "my.model",
                 method: "get_summary",
@@ -98,13 +98,13 @@ export class MyWidget extends Component {
     }
 }
 
-// Register sebagai field widget
+// Register as field widget
 registry.category("fields").add("my_widget", {
     component: MyWidget,
     supportedTypes: ["char", "many2one"],
 });
 
-// Register sebagai action
+// Register as action
 registry.category("actions").add("my_action", MyWidget);
 ```
 
@@ -143,7 +143,7 @@ registry.category("actions").add("my_action", MyWidget);
                     Action
                 </button>
 
-                <!-- Input dengan ref -->
+                <!-- Input with ref -->
                 <input t-ref="myInput" type="text" class="o_input"/>
 
                 <!-- Conditional class -->
@@ -158,7 +158,7 @@ registry.category("actions").add("my_action", MyWidget);
 
 ---
 
-## OWL 1.x (v14, v15) — Perbedaan
+## OWL 1.x (v14, v15) — Differences
 
 ```javascript
 // v14: legacy import
@@ -169,7 +169,7 @@ odoo.define('my_module.MyWidget', function(require) {
     class MyWidget extends Component {
         // ...
         async _loadData() {
-            // v14-v15: this.rpc masih valid
+            // v14-v15: this.rpc still valid
             const result = await this.rpc({
                 model: 'my.model',
                 method: 'get_data',
@@ -180,14 +180,14 @@ odoo.define('my_module.MyWidget', function(require) {
     return MyWidget;
 });
 
-// v15: sudah pakai module system tapi masih OWL 1
+// v15: already using module system but still OWL 1
 /** @odoo-module **/
 import { Component, useState, hooks } from "@odoo/owl";
-const { useRef, onMounted } = hooks;  // v15: hooks dari hooks object
+const { useRef, onMounted } = hooks;  // v15: hooks are imported from the hooks object
 
-// RPC di v15
+// RPC in v15
 import { useService } from "@web/core/utils/hooks";
-// this.rpc = useService("rpc");  ← v15 sudah ada ini
+// this.rpc = useService("rpc");  ← v15 already has this
 ```
 
 ---
@@ -215,7 +215,7 @@ import { useService } from "@web/core/utils/hooks";
 ## ORM Service (v16+)
 
 ```javascript
-// orm service — lebih clean dari raw rpc
+// orm service — cleaner than raw rpc
 const orm = useService("orm");
 
 // search

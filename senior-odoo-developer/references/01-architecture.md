@@ -1,6 +1,6 @@
 ---
 name: odoo-architecture
-description: Module structure, service layer patterns, multi-company, dan architectural decisions untuk semua versi Odoo.
+description: Module structure, service layer patterns, multi-company, and architectural decisions for all Odoo versions.
 ---
 
 # Architecture Patterns — All Versions
@@ -19,7 +19,7 @@ my_module/
 │   ├── my_model_views.xml
 │   └── my_model_menus.xml
 ├── security/
-│   ├── ir.model.access.csv      ← WAJIB untuk setiap model baru
+│   ├── ir.model.access.csv      ← REQUIRED for every new model
 │   └── my_module_security.xml   ← record rules, groups
 ├── data/
 │   └── my_module_data.xml
@@ -29,7 +29,7 @@ my_module/
 ├── controllers/
 │   ├── __init__.py
 │   └── main.py
-├── services/                    ← untuk external integrations
+├── services/                    ← for external integrations
 │   ├── __init__.py
 │   └── external_api.py
 ├── migrations/
@@ -61,7 +61,7 @@ ORM / DB
 ```
 
 ```python
-# ❌ SALAH: business logic di controller
+# ❌ WRONG: business logic in controller
 class MyController(http.Controller):
     @http.route('/api/order', type='json', auth='user')
     def create_order(self, **kwargs):
@@ -73,14 +73,14 @@ class MyController(http.Controller):
         order.action_confirm()
         return {'id': order.id}
 
-# ✅ BENAR: controller tipis, model yang kerja
+# ✅ CORRECT: thin controller, model does the work
 class MyController(http.Controller):
     @http.route('/api/order', type='json', auth='user')
     def create_order(self, **kwargs):
         order = request.env['sale.order'].create_from_api(kwargs)
         return {'id': order.id}
 
-# Di model:
+# In model:
 @api.model
 def create_from_api(self, data):
     partner = self.env['res.partner'].search([('name', '=', data['name'])], limit=1)
@@ -93,18 +93,18 @@ def create_from_api(self, data):
 
 ---
 
-## Service Layer untuk External Integrations
+## Service Layer for External Integrations
 
-Ketika ada HTTP calls ke sistem eksternal (Camunda, payment gateway, ERP lain):
+When making HTTP calls to external systems (Camunda, payment gateway, other ERPs):
 
 ```
 my_module/
 ├── models/
-│   └── my_model.py          ← trigger service, simpan hasil
+│   └── my_model.py          ← trigger service, save result
 ├── services/
-│   └── external_api.py      ← SEMUA HTTP calls ke luar
+│   └── external_api.py      ← ALL outbound HTTP calls
 └── controllers/
-    └── webhook.py           ← terima callback dari luar
+    └── webhook.py           ← receive callbacks from external system
 ```
 
 ```python
@@ -135,7 +135,7 @@ def action_send_to_external(self):
 
 ## Multi-Company Architecture
 
-Setiap model yang menyimpan data company-specific WAJIB punya `company_id`:
+Every model storing company-specific data MUST have `company_id`:
 
 ```python
 class MyModel(models.Model):
@@ -148,7 +148,7 @@ class MyModel(models.Model):
     )
 ```
 
-Record rule multi-company (di `security/my_module_security.xml`):
+Multi-company record rule (in `security/my_module_security.xml`):
 
 ```xml
 <record id="rule_my_model_company" model="ir.rule">
@@ -173,14 +173,14 @@ Record rule multi-company (di `security/my_module_security.xml`):
     'author': 'Your Name',
     'depends': ['base', 'mail'],
     'data': [
-        'security/ir.model.access.csv',   # ← SELALU PERTAMA
+        'security/ir.model.access.csv',   # ← ALWAYS FIRST
         'security/my_module_security.xml',
         'data/my_module_data.xml',
         'views/my_model_views.xml',
         'views/my_model_menus.xml',
     ],
     'installable': True,
-    'application': False,       # True hanya jika main app dengan menu top-level
+    'application': False,       # True only if it's a main app with top-level menu
     'auto_install': False,
     'license': 'LGPL-3',
 }
@@ -190,7 +190,7 @@ Record rule multi-company (di `security/my_module_security.xml`):
 
 ## Inheritance Patterns
 
-### Model Extension (paling umum)
+### Model Extension (most common)
 ```python
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -198,7 +198,7 @@ class ResPartner(models.Model):
     custom_field = fields.Char(string='Custom Field')
 ```
 
-### Model Delegation (untuk relasi IS-A)
+### Model Delegation (for IS-A relationships)
 ```python
 class Employee(models.Model):
     _name = 'hr.employee.custom'

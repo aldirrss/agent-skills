@@ -1,11 +1,11 @@
 ---
 name: odoo-pitfalls
-description: Anti-patterns dan jebakan umum per versi Odoo — dengan fix yang benar.
+description: Anti-patterns and common traps per Odoo version — with correct fixes.
 ---
 
 # Pitfalls & Anti-Patterns — All Versions
 
-## Universal Pitfalls (Semua Versi)
+## Universal Pitfalls (All Versions)
 
 ### N+1 Query
 ```python
@@ -20,7 +20,7 @@ all_payments = self.env['account.payment'].search(
 payment_map = {p.ref: p for p in all_payments}
 ```
 
-### Write dalam Loop
+### Write Inside Loop
 ```python
 # ❌ N SQL UPDATE
 for rec in records:
@@ -30,9 +30,9 @@ for rec in records:
 records.write({'state': 'done'})
 ```
 
-### Missing Loop di Compute
+### Missing Loop in Compute
 ```python
-# ❌ Hanya update self[0], record lain tidak di-update
+# ❌ Only updates self[0], other records not updated
 @api.depends('amount')
 def _compute_tax(self):
     self.tax = self.amount * 0.1
@@ -44,21 +44,21 @@ def _compute_tax(self):
         rec.tax = rec.amount * 0.1
 ```
 
-### sudo() Tanpa Alasan
+### sudo() Without Reason
 ```python
-# ❌ sudo() karena malas fix ACL
+# ❌ sudo() because lazy to fix ACL
 def get_partner_data(self):
-    return self.env['res.partner'].sudo().search([])  # expose semua!
+    return self.env['res.partner'].sudo().search([])  # exposes all records!
 
-# ✅ Fix ACL yang benar, atau sudo minimal + dokumentasi
+# ✅ Fix the ACL properly, or minimal sudo + documentation
 def get_partner_data(self):
     # sudo needed: partner readable by all employees for display purpose
     return self.env['res.partner'].sudo().search([('customer_rank', '>', 0)])
 ```
 
-### CRUD di Onchange
+### CRUD in Onchange
 ```python
-# ❌ DILARANG KERAS
+# ❌ STRICTLY FORBIDDEN
 @api.onchange('partner_id')
 def _onchange_partner(self):
     self.env['audit.log'].create({'action': 'partner_changed'})  # NO!
@@ -70,13 +70,13 @@ def _onchange_partner(self):
         self.payment_term_id = self.partner_id.property_payment_term_id
 ```
 
-### Dotted Path di @api.constrains
+### Dotted Path in @api.constrains
 ```python
-# ❌ Tidak valid — tidak akan trigger saat partner berubah
+# ❌ Invalid — will not trigger when partner changes
 @api.constrains('partner_id.country_id')
 def _check_country(self): ...
 
-# ✅ Hanya direct fields
+# ✅ Only direct fields
 @api.constrains('partner_id')
 def _check_country(self):
     for rec in self:
@@ -100,13 +100,13 @@ self.env.cr.execute("SELECT id FROM table WHERE name = %s", (name,))
 
 ### v14 Only
 ```python
-# ❌ @api.multi sudah deprecated di v14
+# ❌ @api.multi was deprecated in v14
 @api.multi
 def action_do(self):
     for rec in self:
         pass
 
-# ✅ Tanpa decorator (recordset method)
+# ✅ Without decorator (recordset method)
 def action_do(self):
     for rec in self:
         pass
@@ -114,14 +114,14 @@ def action_do(self):
 
 ### v15 Pitfalls
 ```python
-# ❌ Masih pakai OWL 1.x syntax
+# ❌ Still using OWL 1.x syntax
 const { useState } = owl.hooks;
 
-# ✅ Module system v15
+# ✅ v15 module system
 /** @odoo-module **/
 import { useState } from "@odoo/owl";
 
-# ❌ @api.model untuk create
+# ❌ @api.model for create
 @api.model
 def create(self, vals):
     return super().create(vals)
@@ -134,12 +134,12 @@ def create(self, vals_list):
 
 ### v16 Pitfalls
 ```python
-# ❌ this.rpc deprecated di v16
+# ❌ this.rpc is deprecated in v16
 async _loadData() {
     await this.rpc({model: 'my.model', method: 'get_data', args: []});
 }
 
-# ✅ useService('rpc') atau orm
+# ✅ useService('rpc') or orm
 setup() {
     this.orm = useService("orm");
 }
@@ -150,10 +150,10 @@ async _loadData() {
 
 ### v17 Pitfalls
 ```python
-# ❌ Masih pakai <tree> tanpa cek versi
-# Odoo 17 sedang transisi — lebih baik pakai <list> jika targetnya v17+
+# ❌ Still using <tree> without checking the target version
+# Odoo 17 is in a transition phase — prefer <list> if v17+ is your target
 
-# ❌ Masih pakai group_operator= (deprecated mulai v17)
+# ❌ Still using group_operator= (deprecated starting in v17)
 amount = fields.Float(group_operator='sum')
 
 # ✅ v17+
@@ -162,20 +162,20 @@ amount = fields.Float(aggregator='sum')
 
 ### v18 Pitfalls
 ```python
-# ❌ Masih pakai <tree> tag di v18
-# <tree string="Records">  ← harus <list> di v18
+# ❌ Still using the <tree> tag in v18
+# <tree string="Records">  ← must be <list> in v18
 
-# ❌ Masih pakai attrs= di v18 (deprecated)
+# ❌ Still using attrs= in v18 (deprecated)
 # <field name="x" attrs="{'invisible': [...]}"/>
 # ✅
 # <field name="x" invisible="state == 'done'"/>
 
-# ❌ group_operator= di v18
+# ❌ group_operator= in v18
 amount = fields.Float(group_operator='sum')
 # ✅
 amount = fields.Float(aggregator='sum')
 
-# ❌ <div class="oe_chatter"> di v18
+# ❌ <div class="oe_chatter"> in v18
 # <div class="oe_chatter">...</div>
 # ✅
 # <chatter/>
@@ -185,34 +185,34 @@ amount = fields.Float(aggregator='sum')
 
 ## Transaction Pitfalls
 
-### Handle UniqueViolation Tanpa Savepoint
+### Handling UniqueViolation Without a Savepoint
 ```python
-# ❌ Transaction rusak setelah UniqueViolation tanpa savepoint
+# ❌ Transaction is broken after UniqueViolation without a savepoint
 try:
     self.create({'reference': ref})
 except Exception:
-    # Transaction sudah "aborted" — query apapun akan gagal!
+    # Transaction is already "aborted" — any query will fail!
     existing = self.search([('reference', '=', ref)])  # ERROR: InFailedSqlTransaction
 
-# ✅ Gunakan savepoint
+# ✅ Use a savepoint
 try:
     with self.env.cr.savepoint():
         self.create({'reference': ref})
 except Exception:
-    # savepoint di-rollback, transaction utama masih oke
-    existing = self.search([('reference', '=', ref)])  # ✅ jalan
+    # Savepoint rolls back, main transaction remains healthy
+    existing = self.search([('reference', '=', ref)])  # ✅ works
 ```
 
-### Lupa flush() Sebelum Raw SQL
+### Forgetting flush() Before Raw SQL
 ```python
-# ❌ ORM cache belum ditulis ke DB saat raw SQL dijalankan
-record.write({'amount': 500})  # di ORM cache, belum ke DB
+# ❌ ORM cache has not been written to DB when raw SQL runs
+record.write({'amount': 500})  # in ORM cache, not yet in DB
 self.env.cr.execute("SELECT amount FROM my_model WHERE id = %s", (record.id,))
-# → bisa dapat nilai lama!
+# → may return stale values!
 
-# ✅ Flush dulu
+# ✅ Flush first
 record.write({'amount': 500})
-self.env.flush_all()  # atau record.flush_recordset()
+self.env.flush_all()  # or record.flush_recordset()
 self.env.cr.execute("SELECT amount FROM my_model WHERE id = %s", (record.id,))
 ```
 
@@ -220,9 +220,9 @@ self.env.cr.execute("SELECT amount FROM my_model WHERE id = %s", (record.id,))
 
 ## Architecture Pitfalls
 
-### Business Logic di Controller
+### Business Logic in Controller
 ```python
-# ❌ Controller tebal dengan business logic
+# ❌ Fat controller with business logic
 @http.route('/api/confirm', type='json', auth='user')
 def confirm_order(self, order_id):
     order = request.env['sale.order'].browse(order_id)
@@ -232,25 +232,25 @@ def confirm_order(self, order_id):
     order._send_confirmation_email()
     return {'success': True}
 
-# ✅ Controller tipis, model yang handle
+# ✅ Thin controller, model handles the logic
 @http.route('/api/confirm', type='json', auth='user')
 def confirm_order(self, order_id):
     order = request.env['sale.order'].browse(order_id)
-    order.action_confirm_from_api()  # semua logic di sini
+    order.action_confirm_from_api()  # all logic lives here
     return {'success': True, 'id': order.id}
 ```
 
-### Hard-Depend ke Enterprise Module Tanpa Guard
+### Hard Dependency on Enterprise Module Without Guard
 ```python
-# ❌ Module community yang depend enterprise tanpa cek
+# ❌ Community module depends on enterprise module without safeguards
 {
-    'depends': ['sale', 'sale_management', 'sale_enterprise_feature'],  # bisa fail!
+    'depends': ['sale', 'sale_management', 'sale_enterprise_feature'],  # may fail!
 }
 
-# ✅ Gunakan auto_install atau pisahkan ke glue module
+# ✅ Use auto_install or split into a glue module
 {
     'name': 'My Module Enterprise Bridge',
     'depends': ['my_module', 'sale_enterprise_feature'],
-    'auto_install': True,  # install otomatis jika kedua deps ada
+    'auto_install': True,  # auto-install when both dependencies exist
 }
 ```

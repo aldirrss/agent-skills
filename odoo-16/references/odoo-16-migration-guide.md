@@ -630,7 +630,7 @@ def migrate(cr, version):
     new_tag = env.ref('l10n_nl.tax_tag_new', raise_if_not_found=False)
 
     if old_tag and new_tag:
-        # Odoo 16: gunakan parameterized query langsung (SQL() class belum ada)
+        # Odoo 16: use parameterized queries directly (SQL() class is not available yet)
         cr.execute("""
             UPDATE account_account_tag_account_tax_repartition_line_rel
             SET account_account_tag_id = %s

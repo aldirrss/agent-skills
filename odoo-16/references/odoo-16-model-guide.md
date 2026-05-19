@@ -687,8 +687,8 @@ records.with_company(main_company).action_process()
 ### SQL Query Methods (Odoo 16)
 
 ```python
-# Odoo 16: gunakan cr.execute() dengan parameterized query
-# SQL() class belum tersedia — itu fitur Odoo 17+
+# Odoo 16: use cr.execute() with parameterized queries
+# SQL() class is not available yet — that is an Odoo 17+ feature
 
 # Returns list of tuples
 self.env.cr.execute("""

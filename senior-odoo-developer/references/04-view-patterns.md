@@ -1,6 +1,6 @@
 ---
 name: odoo-view-patterns
-description: XML view patterns dengan version-specific syntax. attrs= untuk v14-v16, inline untuk v17+.
+description: XML view patterns with version-specific syntax. attrs= for v14-v16, inline for v17+.
 ---
 
 # View Patterns — All Versions
@@ -8,8 +8,8 @@ description: XML view patterns dengan version-specific syntax. attrs= untuk v14-
 ## ⚠️ Version-Critical Syntax
 
 ```
-v14, v15, v16 → WAJIB attrs={"invisible": [...]}
-v17           → kedua cara valid (transisi)
+v14, v15, v16 → REQUIRED attrs={"invisible": [...]}
+v17           → both ways are valid (transition period)
 v18, v19      → inline: invisible="state == 'done'"
 ```
 
@@ -18,7 +18,7 @@ v18, v19      → inline: invisible="state == 'done'"
 ## List/Tree View
 
 ```xml
-<!-- v14, v15, v16: gunakan <tree> -->
+<!-- v14, v15, v16: use <tree> -->
 <record id="view_my_model_tree" model="ir.ui.view">
     <field name="name">my.model.tree</field>
     <field name="model">my.model</field>
@@ -37,7 +37,7 @@ v18, v19      → inline: invisible="state == 'done'"
     </field>
 </record>
 
-<!-- v18, v19: gunakan <list> -->
+<!-- v18, v19: use <list> -->
 <record id="view_my_model_list" model="ir.ui.view">
     <field name="name">my.model.list</field>
     <field name="model">my.model</field>
@@ -73,8 +73,8 @@ v18, v19      → inline: invisible="state == 'done'"
                        statusbar_visible="draft,confirmed,done"/>
             </header>
 
-            <!-- v16-: chatter dengan div -->
-            <!-- v17+: gunakan <chatter/> tag -->
+            <!-- v16-: chatter with div -->
+            <!-- v17+: use <chatter/> tag -->
 
             <sheet>
                 <!-- Stat buttons -->
@@ -152,7 +152,7 @@ v18, v19      → inline: invisible="state == 'done'"
 <button name="action_cancel"
         attrs="{'invisible': [('state', 'in', ['draft', 'cancel'])]}"/>
 
-<!-- ==================== v17 (kedua valid) ==================== -->
+<!-- ==================== v17 (both valid) ==================== -->
 <field name="date_end"
        attrs="{'invisible': [('state', '!=', 'done')]}"/>
 <!-- ATAU -->
@@ -214,28 +214,28 @@ v18, v19      → inline: invisible="state == 'done'"
     <field name="inherit_id" ref="base_module.view_my_model_form"/>
     <field name="arch" type="xml">
 
-        <!-- Tambah field setelah field lain -->
+        <!-- Add field after another field -->
         <field name="partner_id" position="after">
             <field name="custom_field"/>
         </field>
 
-        <!-- Tambah button di header -->
+        <!-- Add button in header -->
         <header position="inside">
             <button name="action_custom" string="Custom Action" type="object"
                     class="btn-secondary"/>
         </header>
 
-        <!-- Replace seluruh field -->
+        <!-- Replace entire field -->
         <field name="old_field" position="replace">
             <field name="new_field"/>
         </field>
 
-        <!-- Sembunyikan field -->
+        <!-- Hide field -->
         <field name="unwanted_field" position="attributes">
             <attribute name="invisible">1</attribute>
         </field>
 
-        <!-- Tambah page baru di notebook -->
+        <!-- Add new page in notebook -->
         <notebook position="inside">
             <page string="Custom Tab" name="custom">
                 <group>
@@ -244,7 +244,7 @@ v18, v19      → inline: invisible="state == 'done'"
             </page>
         </notebook>
 
-        <!-- XPath ke elemen spesifik -->
+        <!-- XPath to specific element -->
         <xpath expr="//group[@name='details']" position="inside">
             <field name="extra_field"/>
         </xpath>
