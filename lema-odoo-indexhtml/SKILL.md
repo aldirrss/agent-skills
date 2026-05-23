@@ -133,17 +133,18 @@ Each module must keep description assets under:
 
 ```
 <module>/static/description/
-├── icon.png              # 140×140 module icon
+├── icon.png              # 140×140 module icon (per-module)
 ├── index.html            # this file
 └── assets/
-    ├── brand.png         # Lema Core brand image
-    ├── email.svg         # inline-safe icon
-    ├── linkedin.svg
-    ├── video.gif         # demo animation (optional)
-    ├── icons/            # optional SVG icons replacing Font Awesome
-    ├── screenshots/      # all screenshot PNGs
-    └── modules/          # related-products thumbnails (1.png, 2.png, ...)
+    ├── brand.png         # ← COPY FROM lema-odoo-indexhtml/assets/brand.png (do not regenerate)
+    ├── email.svg         # ← COPY FROM lema-odoo-indexhtml/assets/email.svg (do not regenerate)
+    ├── video.gif         # demo animation (optional, per-module)
+    ├── icons/            # optional extra SVG icons (per-module)
+    ├── screenshots/      # all screenshot PNGs (per-module)
+    └── modules/          # related-products thumbnails (1.png, 2.png, ...) (per-module)
 ```
+
+Files marked **COPY FROM** are canonical assets bundled with this skill — see "Bundled canonical assets" below. Everything else is per-module content the developer prepares.
 
 Only reference paths that exist in `static/description/`. The validator follows local image URLs and rejects broken paths.
 
@@ -168,10 +169,14 @@ Before declaring the file ready, mentally walk through:
 When the user asks for a new index.html:
 
 1. Ask for the module's display name, technical name, one-paragraph value proposition, primary feature list, and Odoo version target if not already in the conversation context.
-2. Start from `references/template.html`.
-3. Replace placeholders marked with `{{MODULE_NAME}}`, `{{MODULE_TAGLINE}}`, `{{MODULE_VERSION}}`, `{{ODOO_VERSION}}`, etc.
-4. Drop sections that have no real content rather than padding them with filler — accuracy is required.
-5. Run through the pre-submission checklist before reporting completion.
+2. Copy the bundled canonical assets into the target module's `static/description/assets/`:
+   - `lema-odoo-indexhtml/assets/brand.png` → `<module>/static/description/assets/brand.png`
+   - `lema-odoo-indexhtml/assets/email.svg` → `<module>/static/description/assets/email.svg`
+3. Start from `references/template.html` and write it to `<module>/static/description/index.html`.
+4. Replace placeholders marked with `{{MODULE_NAME}}`, `{{MODULE_TAGLINE}}`, `{{MODULE_VERSION}}`, `{{ODOO_VERSION}}`, etc.
+5. Drop sections that have no real content rather than padding them with filler — accuracy is required.
+6. Confirm the per-module assets the developer must still supply (`icon.png`, screenshots under `assets/screenshots/`, optional `video.gif`, related-module thumbnails under `assets/modules/`).
+7. Run through the pre-submission checklist before reporting completion.
 
 When reviewing an existing file:
 
@@ -184,3 +189,26 @@ When reviewing an existing file:
 - `references/template.html` — full compliant skeleton implementing all ten sections.
 - `references/guidelines.md` — verbatim copy of the Odoo Apps Store guidelines for quick lookup.
 - `references/violations-cheatsheet.md` — common review findings and their fixes.
+
+## Bundled canonical assets
+
+The skill ships brand assets that must be reused as-is across every Lema Core module — do not regenerate or substitute them.
+
+| Skill path | Purpose | Copy to (in target module) |
+|---|---|---|
+| `assets/brand.png` | Lema Core Technologies brand banner used in Hero Banner (section 2) and Footer (section 10) | `<module>/static/description/assets/brand.png` |
+| `assets/email.svg` | Inline-safe email icon used in Hero contact button and Footer | `<module>/static/description/assets/email.svg` |
+
+**When generating a new module's description page:**
+
+1. Copy `lema-odoo-indexhtml/assets/brand.png` → `<module>/static/description/assets/brand.png`
+2. Copy `lema-odoo-indexhtml/assets/email.svg` → `<module>/static/description/assets/email.svg`
+3. Render the template with these paths already wired (the template already references `assets/brand.png` and `assets/email.svg` — no edits needed)
+
+**Do not:**
+
+- Re-export `brand.png` from a different source — the bundled file is the master copy approved for Apps Store use
+- Replace `email.svg` with a Font Awesome `<i class="fa fa-envelope">` — that brings back the forbidden external CSS dependency
+- Add new "canonical" assets directly into modules without first depositing them in this skill's `assets/` folder
+
+If a future module needs an additional shared asset (e.g., a new `linkedin.svg`, `phone.svg`, or product-line logo), add it to `lema-odoo-indexhtml/assets/` first, then reference it from the template and from this table — that is how the convention propagates.
