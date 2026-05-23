@@ -12,6 +12,14 @@ Quick reference for reviewing an existing `static/description/index.html`.
 | `data-bs-toggle="tab"` or `data-bs-toggle="modal"` | Requires Bootstrap JS bundle | Flatten tabs into linear sections; replace modals with `<details>` or expanded content |
 | `data-bs-ride="carousel"` outside the Related Products block | Bootstrap JS reliance not allowed for content tabs/sliders | Replace the offending area with a static `row` of cards. Related Products is the documented exception — `lm_ai_summary` ships the carousel and was accepted by the validator |
 
+## SVG / icon rendering violations
+
+| Symptom | Violation | Fix |
+|---|---|---|
+| Inline `<svg>...</svg>` element in HTML body | Odoo's HTML sanitizer strips `<svg>` when rendering the description in the Apps browser — the icon disappears, leaving a blank gap before the title | Save the SVG as a file under `static/description/assets/icons/` and reference it with `<img src="assets/icons/<name>.svg" alt="" width="14" height="14"/>`. The skill ships canonical `star-purple/blue/green.svg` and `gear-purple.svg` for this purpose |
+| `fill="currentColor"` on `<img>`-referenced SVG | `<img>` cannot inherit text color from its parent — the SVG renders with no fill | Bake the color into the SVG file: `<path fill="#3f3274" .../>`. Maintain one SVG file per color variant |
+| Font Awesome icon like `<i class="fa fa-star">` | Requires external Font Awesome CSS, forbidden by validator | Replace with the canonical `<img src="assets/icons/...">` from the skill bundle |
+
 ## External resource violations
 
 | Symptom | Violation | Fix |

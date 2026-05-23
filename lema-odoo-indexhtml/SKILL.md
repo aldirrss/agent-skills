@@ -112,20 +112,31 @@ Fonts: rely on the system stack — `font-family: -apple-system, BlinkMacSystemF
 
 ### Icon convention
 
-Card titles in the **Features** and **Technical Specifications** sections carry a small inline-SVG icon for visual rhythm. Use the following convention:
+Card titles in the **Features** and **Technical Specifications** sections carry a small icon for visual rhythm. **Icons must be referenced as `<img src="assets/icons/...">`, never as inline `<svg>` elements** — Odoo's HTML sanitizer strips inline SVG when rendering the description in the Apps browser, leaving a blank space.
 
-| Location | Icon shape | Color rule | Size |
+Use this convention:
+
+| Location | Icon file | Title color | Size |
 |---|---|---|---|
-| All 9 feature cards (`<h6>`) | Filled star | `fill="currentColor"` — inherits the per-group title color (#3f3274 purple, #0d47a1 blue, #1b5e20 green) | 14×14 |
-| All 4 tech spec cards (`<h5>` for Dependencies / Deployment / Performance / Security) | Filled gear (Material settings) | Fixed `fill="#5b4da0"` to match the eyebrow heading | 16×16 |
+| Feature group 1 (Core / Primary, 3 cards) | `assets/icons/star-purple.svg` | `#3f3274` | 14×14 |
+| Feature group 2 (Secondary, 3 cards) | `assets/icons/star-blue.svg` | `#0d47a1` | 14×14 |
+| Feature group 3 (Accent, 3 cards) | `assets/icons/star-green.svg` | `#1b5e20` | 14×14 |
+| All 4 tech spec cards (Dependencies / Deployment / Performance / Security) | `assets/icons/gear-purple.svg` | `#121212` (title), icon `#5b4da0` | 16×16 |
 
-Both icons are inline `<svg>` with `xmlns`, `viewBox="0 0 24 24"`, and inline `style="vertical-align:-2px; margin-right:6px;"` — no external CSS, no font icon library. Copy the exact markup from `references/template.html`; do not swap in Font Awesome classes.
+The exact markup is:
 
-If you ever change icon shape, keep these invariants:
+```html
+<img src="assets/icons/star-purple.svg" alt="" width="14" height="14" style="vertical-align:-2px; margin-right:6px;"/>
+```
 
-- One consistent shape across the whole Features section (do not vary icons per card)
+The four SVG files (`star-purple.svg`, `star-blue.svg`, `star-green.svg`, `gear-purple.svg`) ship with this skill under `lema-odoo-indexhtml/assets/icons/` and are listed in the canonical assets table — copy them into the target module's `<module>/static/description/assets/icons/` folder during generation.
+
+Invariants when extending or modifying icons:
+
+- One consistent shape across the whole Features section (only the color varies by group)
 - One consistent shape across the whole Tech Specs section
-- Always `fill="currentColor"` when you want the icon to match its group color, or a hardcoded hex when you want it fixed regardless of context
+- Never inline an `<svg>` — Odoo sanitizer will strip it; always reference a file via `<img>`
+- Color must be baked into the SVG `<path fill="...">` because `<img>`-referenced SVG cannot inherit `currentColor` from the parent
 
 ## Folder layout
 
@@ -133,15 +144,19 @@ Each module must keep description assets under:
 
 ```
 <module>/static/description/
-├── icon.png              # 140×140 module icon (per-module)
-├── index.html            # this file
+├── icon.png                       # 140×140 module icon (per-module)
+├── index.html                     # this file
 └── assets/
-    ├── brand.png         # ← COPY FROM lema-odoo-indexhtml/assets/brand.png (do not regenerate)
-    ├── email.svg         # ← COPY FROM lema-odoo-indexhtml/assets/email.svg (do not regenerate)
-    ├── video.gif         # demo animation (optional, per-module)
-    ├── icons/            # optional extra SVG icons (per-module)
-    ├── screenshots/      # all screenshot PNGs (per-module)
-    └── modules/          # related-products thumbnails (1.png, 2.png, ...) (per-module)
+    ├── brand.png                  # ← COPY FROM lema-odoo-indexhtml/assets/brand.png (do not regenerate)
+    ├── email.svg                  # ← COPY FROM lema-odoo-indexhtml/assets/email.svg (do not regenerate)
+    ├── video.gif                  # demo animation (optional, per-module)
+    ├── icons/
+    │   ├── star-purple.svg        # ← COPY FROM lema-odoo-indexhtml/assets/icons/star-purple.svg
+    │   ├── star-blue.svg          # ← COPY FROM lema-odoo-indexhtml/assets/icons/star-blue.svg
+    │   ├── star-green.svg         # ← COPY FROM lema-odoo-indexhtml/assets/icons/star-green.svg
+    │   └── gear-purple.svg        # ← COPY FROM lema-odoo-indexhtml/assets/icons/gear-purple.svg
+    ├── screenshots/               # all screenshot PNGs (per-module)
+    └── modules/                   # related-products thumbnails (1.png, 2.png, ...) (per-module)
 ```
 
 Files marked **COPY FROM** are canonical assets bundled with this skill — see "Bundled canonical assets" below. Everything else is per-module content the developer prepares.
@@ -172,6 +187,10 @@ When the user asks for a new index.html:
 2. Copy the bundled canonical assets into the target module's `static/description/assets/`:
    - `lema-odoo-indexhtml/assets/brand.png` → `<module>/static/description/assets/brand.png`
    - `lema-odoo-indexhtml/assets/email.svg` → `<module>/static/description/assets/email.svg`
+   - `lema-odoo-indexhtml/assets/icons/star-purple.svg` → `<module>/static/description/assets/icons/star-purple.svg`
+   - `lema-odoo-indexhtml/assets/icons/star-blue.svg` → `<module>/static/description/assets/icons/star-blue.svg`
+   - `lema-odoo-indexhtml/assets/icons/star-green.svg` → `<module>/static/description/assets/icons/star-green.svg`
+   - `lema-odoo-indexhtml/assets/icons/gear-purple.svg` → `<module>/static/description/assets/icons/gear-purple.svg`
 3. Start from `references/template.html` and write it to `<module>/static/description/index.html`.
 4. Replace placeholders marked with `{{MODULE_NAME}}`, `{{MODULE_TAGLINE}}`, `{{MODULE_VERSION}}`, `{{ODOO_VERSION}}`, etc.
 5. Drop sections that have no real content rather than padding them with filler — accuracy is required.
@@ -197,13 +216,18 @@ The skill ships brand assets that must be reused as-is across every Lema Core mo
 | Skill path | Purpose | Copy to (in target module) |
 |---|---|---|
 | `assets/brand.png` | Lema Core Technologies brand banner used in Hero Banner (section 2) and Footer (section 10) | `<module>/static/description/assets/brand.png` |
-| `assets/email.svg` | Inline-safe email icon used in Hero contact button and Footer | `<module>/static/description/assets/email.svg` |
+| `assets/email.svg` | Email icon used in Hero contact button and Footer | `<module>/static/description/assets/email.svg` |
+| `assets/icons/star-purple.svg` | Title icon for Features group 1 (3 cards) | `<module>/static/description/assets/icons/star-purple.svg` |
+| `assets/icons/star-blue.svg` | Title icon for Features group 2 (3 cards) | `<module>/static/description/assets/icons/star-blue.svg` |
+| `assets/icons/star-green.svg` | Title icon for Features group 3 (3 cards) | `<module>/static/description/assets/icons/star-green.svg` |
+| `assets/icons/gear-purple.svg` | Title icon for all 4 Technical Specifications cards | `<module>/static/description/assets/icons/gear-purple.svg` |
 
 **When generating a new module's description page:**
 
 1. Copy `lema-odoo-indexhtml/assets/brand.png` → `<module>/static/description/assets/brand.png`
 2. Copy `lema-odoo-indexhtml/assets/email.svg` → `<module>/static/description/assets/email.svg`
-3. Render the template with these paths already wired (the template already references `assets/brand.png` and `assets/email.svg` — no edits needed)
+3. Create `<module>/static/description/assets/icons/` and copy all four icon SVGs (`star-purple.svg`, `star-blue.svg`, `star-green.svg`, `gear-purple.svg`) into it
+4. Render the template with these paths already wired (the template already references `assets/brand.png`, `assets/email.svg`, and `assets/icons/*.svg` — no edits needed)
 
 **Do not:**
 
