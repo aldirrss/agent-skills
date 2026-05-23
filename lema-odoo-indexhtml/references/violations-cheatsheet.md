@@ -43,6 +43,9 @@ Quick reference for reviewing an existing `static/description/index.html`.
 
 | Symptom | Violation | Fix |
 |---|---|---|
+| `style="background:#fff;..."` (shorthand) | Sanitizer strips the `background:` shorthand entirely — confirmed empirically in deployed Lema modules — the element renders with no background | Convert every `background:` to `background-color:` (longhand). Solid colors only |
+| `style="background:linear-gradient(...)"` | `background-image` and gradients are stripped | Pick a single solid color and use `background-color:` |
+| `box-shadow:0 4px 16px ...` | Stripped by sanitizer | Replace with a stronger `border:` for visual separation |
 | `<style>` block defining global `body`, `html`, `*` selectors | Can leak into Odoo UI | Move properties to inline `style="..."` on the element, scoped only to your section |
 | `position: absolute/fixed` in inline style | Risks breaking Odoo layout | Replace with flexbox via Bootstrap classes |
 | `transform`, `animation`, `transition` | Can interfere with Odoo | Remove |

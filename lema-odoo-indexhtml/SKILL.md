@@ -47,16 +47,34 @@ Everything else — Google Drive, Vimeo, Loom, app marketplaces, third-party blo
 - **No `<style>` blocks with selectors that can leak** (`*`, `body`, `html`, attribute selectors targeting Odoo elements). Only minimal scoped rules if absolutely necessary.
 
 ### Allowed style attributes
-The validator strictly limits inline style attributes to the following families. Anything else may be stripped or trigger a rejection.
 
-- `color`, `background`, `background-color`, `background-image`
+The Apps Store sanitizer strictly limits inline style attributes. **Empirical evidence from deployed Lema modules** (lm_indonesia_bank_statement_import, May 2026) confirms the following behavior:
+
+**Confirmed allowed (survives the sanitizer):**
+
+- `color` — text color
+- `background-color` (longhand only) — solid background color
 - `font-*` (font-size, font-weight, font-family, font-style)
 - `margin-*` (margin, margin-top, margin-right, margin-bottom, margin-left)
 - `padding-*`
-- `border-*` (border, border-radius, border-color, border-width, border-style)
-- Bootstrap 4 utility classes for layout (`row`, `col-*`, `mt-*`, `mb-*`, `p-*`, `text-center`, `d-flex`, `align-items-*`, `justify-content-*`, `flex-wrap`, `gap-*`, `g-*`)
+- `border-*` (border, border-radius, border-color, border-width, border-style, border-top/right/bottom/left)
+- Bootstrap 4 utility classes (`row`, `col-*`, `mt-*`, `mb-*`, `p-*`, `text-center`, `d-flex`, `align-items-*`, `justify-content-*`, `flex-wrap`, `gap-*`, `g-*`)
 
-Other rules such as `width`, `height`, `display`, `box-shadow`, `text-transform`, `letter-spacing`, `line-height`, `list-style`, `text-decoration` are commonly accepted in practice (they appear in the reference template), but treat them as best-effort and avoid combining them with anything that could be interpreted as harmful (positioning, transforms, animations, z-index manipulation).
+**Confirmed stripped by the sanitizer — DO NOT USE:**
+
+- `background:` (shorthand) — **always converted to nothing**. Even `background:#fff` solid color is stripped. Use `background-color:#fff` instead.
+- `background-image:` — stripped (no gradients, no images via CSS)
+- `linear-gradient(...)`, `radial-gradient(...)` — stripped entirely
+- `box-shadow` — stripped (do not rely on shadows for visual hierarchy)
+- `transform`, `transition`, `animation` — stripped
+- `position: absolute/fixed`, `z-index` — stripped
+
+**Untested / best-effort (use sparingly):**
+
+- `width`, `height` — generally fine on `<img>` and small containers; avoid on layout wrappers
+- `display`, `text-align`, `text-transform`, `letter-spacing`, `line-height`, `vertical-align`, `list-style`, `text-decoration` — appear in the reference template and render correctly in current deployments, but the sanitizer rules may change without notice
+
+**The critical rule:** if a property is not in the "Confirmed allowed" list above, assume it will be stripped at upload time. The Apps Store does not warn you — your page just renders without that style. Always use `background-color:` longhand, never `background:` shorthand.
 
 ## Required Page Structure
 
@@ -167,6 +185,8 @@ Only reference paths that exist in `static/description/`. The validator follows 
 
 Before declaring the file ready, mentally walk through:
 
+- [ ] Every `background-color:` is in longhand form — `grep "background:" index.html` must return 0 results (shorthand is silently stripped)
+- [ ] No `linear-gradient(...)` or `box-shadow:` in any inline style
 - [ ] Page renders without any external CSS/JS loaded
 - [ ] No `<script>` tag anywhere in the file
 - [ ] No `<iframe>`, `<embed>`, `<object>`, `<form>` tags
