@@ -10,7 +10,7 @@ Quick reference for reviewing an existing `static/description/index.html`.
 | `<script>...</script>` inline | JavaScript not allowed | Remove the tag entirely |
 | `onclick`, `onload`, `onmouseover`, etc. on any element | Inline JS handlers not allowed | Strip the attribute; if the element is a tab/button toggle, replace with anchor links or `<details>` |
 | `data-bs-toggle="tab"` or `data-bs-toggle="modal"` | Requires Bootstrap JS bundle | Flatten tabs into linear sections; replace modals with `<details>` or expanded content |
-| `data-bs-ride="carousel"` | Requires Bootstrap JS | Replace with a static `row` of cards |
+| `data-bs-ride="carousel"` outside the Related Products block | Bootstrap JS reliance not allowed for content tabs/sliders | Replace the offending area with a static `row` of cards. Related Products is the documented exception — `lm_ai_summary` ships the carousel and was accepted by the validator |
 
 ## External resource violations
 

@@ -70,7 +70,7 @@ Always produce these sections in this order. Section headings must be in English
 6. **Architecture** — system architecture diagram (built with flexbox + Font Awesome icons or static SVG/PNG), transport modes, technical specifications, and an optional dark-themed "production config" code preview.
 7. **Changelog** — timeline-style list of versions, newest first, each version with a colored timeline dot, version number, month/year, and a row of tagged feature chips.
 8. **FAQ** — collapsible Q&A using native `<details><summary>` elements (no JavaScript needed).
-9. **Related Products** — a static grid (not a JS carousel) of 3–6 other Lema modules with module name and icon, linking to `https://apps.odoo.com/apps/modules/18.0/<module_technical_name>`. The Odoo Apps Store is the *source* platform, so internal apps.odoo.com links are acceptable; never link to non-Odoo marketplaces.
+9. **Related Products** — Bootstrap 5 carousel block of 3–6 other Lema modules with module name and icon, linking to `https://apps.odoo.com/apps/modules/18.0/<module_technical_name>`. Use the exact markup shipped in `lm_ai_summary` / `lm_mcp_server` (already approved by the Odoo Apps Store validator): a `<section class="oe_container mt32">` wrapper with an `oe_slogan` heading, then `<div id="demo" class="row carousel slide" data-bs-ride="carousel">` containing two `carousel-item` slides of three `col-md-4` cards each, plus `carousel-control-prev` / `carousel-control-next` anchors. The Odoo Apps Store is the *source* platform, so internal apps.odoo.com links are acceptable; never link to non-Odoo marketplaces.
 10. **Footer** — brand logo, version line (`Module Name v18.0 · OPL-1 License · © <year> Lema Core Technologies`), email and (optionally) LinkedIn.
 
 A reference template implementing all ten sections in compliance mode is included at `references/template.html`. Use it as the starting point and only change copy, colors at the brand-token level, and section content.
@@ -84,12 +84,12 @@ The legacy `lm_mcp_server/static/description/index.html` was written before Lema
 | Bootstrap 5 CDN link | No external CSS — rely on Odoo's built-in Bootstrap 4 |
 | `<script src="bootstrap.bundle.min.js">` | Remove entirely |
 | jQuery `<script>` | Remove entirely |
-| Owl Carousel `<script>` and CSS | Replace carousel with static Bootstrap row of cards |
+| Owl Carousel `<script>` and CSS | Drop the Owl library; for Related Products use Bootstrap 5 carousel markup (`data-bs-ride="carousel"`) per the proven `lm_ai_summary` template — apps.odoo.com loads Bootstrap JS site-wide so the carousel animates without any local script |
 | Google Fonts `<link href="fonts.googleapis.com">` | Remove — use system font stack via inline `font-family` |
 | Font Awesome CDN | Replace icons with inline SVG inside `assets/icons/*.svg` OR omit icons; never depend on a remote CSS file |
 | `<ul class="nav nav-tabs">` with `data-bs-toggle="tab"` | Flatten tabs into linear sections separated by horizontal rules and anchor links (`<a href="#features">`) |
 | `data-bs-toggle="modal"` | Forbidden — use `<details><summary>` for expandable content |
-| Owl Carousel for Related Products | Static `row` of `col-md-4` cards |
+| Owl Carousel for Related Products | Bootstrap 5 carousel (`<div class="carousel slide" data-bs-ride="carousel">`) with two `carousel-item` slides — same pattern shipped in `lm_ai_summary` and accepted by the Apps Store validator |
 | `<script>` block at end of file | Remove entirely |
 
 ## Brand Tokens (Lema Core)
@@ -109,6 +109,23 @@ Use these color values consistently across the page:
 - Accent danger: `#c62828`
 
 Fonts: rely on the system stack — `font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;`. Never load a webfont.
+
+### Icon convention
+
+Card titles in the **Features** and **Technical Specifications** sections carry a small inline-SVG icon for visual rhythm. Use the following convention:
+
+| Location | Icon shape | Color rule | Size |
+|---|---|---|---|
+| All 9 feature cards (`<h6>`) | Filled star | `fill="currentColor"` — inherits the per-group title color (#3f3274 purple, #0d47a1 blue, #1b5e20 green) | 14×14 |
+| All 4 tech spec cards (`<h5>` for Dependencies / Deployment / Performance / Security) | Filled gear (Material settings) | Fixed `fill="#5b4da0"` to match the eyebrow heading | 16×16 |
+
+Both icons are inline `<svg>` with `xmlns`, `viewBox="0 0 24 24"`, and inline `style="vertical-align:-2px; margin-right:6px;"` — no external CSS, no font icon library. Copy the exact markup from `references/template.html`; do not swap in Font Awesome classes.
+
+If you ever change icon shape, keep these invariants:
+
+- One consistent shape across the whole Features section (do not vary icons per card)
+- One consistent shape across the whole Tech Specs section
+- Always `fill="currentColor"` when you want the icon to match its group color, or a hardcoded hex when you want it fixed regardless of context
 
 ## Folder layout
 
@@ -143,7 +160,7 @@ Before declaring the file ready, mentally walk through:
 - [ ] All copy is English
 - [ ] All image paths resolve inside `static/description/`
 - [ ] FAQ uses `<details>` / `<summary>`, not modals or accordion JS
-- [ ] Related Products is a static grid, not a carousel
+- [ ] Related Products uses the approved Bootstrap 5 carousel markup from `lm_ai_summary` (no separate `<script>` tag — Apps Store loads Bootstrap JS globally)
 - [ ] Footer year and version match the module's `__manifest__.py`
 
 ## Generating the file
