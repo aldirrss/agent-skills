@@ -1,5 +1,5 @@
 ---
-name: senior-odoo-developer
+name: odoo-senior-developer
 description: >
   ELITE senior Odoo architect skill covering ALL versions (14–19). Use for ANY Odoo task:
   module development, architecture decisions, ORM patterns, security, performance, debugging,

@@ -1,5 +1,5 @@
 ---
-name: python
+name: lang-python
 description: Expert in Python development with best practices across web, data science, and automation
 ---
 

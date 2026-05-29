@@ -1,5 +1,5 @@
 ---
-name: super-odoo18-development
+name: odoo-super-18-development
 description: >
   ELITE Odoo 18 development skill for senior-level guidance. Use this for ANY Odoo 18 task
   that requires architectural decisions, code quality review, debugging, performance optimization,

@@ -1,5 +1,5 @@
 ---
-name: ci-cd-best-practices
+name: devops-cicd
 description: CI/CD best practices for building automated pipelines, deployment strategies, testing, and DevOps workflows across platforms
 ---
 

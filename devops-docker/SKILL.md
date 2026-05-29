@@ -1,5 +1,5 @@
 ---
-name: docker
+name: devops-docker
 description: Docker containerization best practices for building, securing, and deploying containers.
 ---
 

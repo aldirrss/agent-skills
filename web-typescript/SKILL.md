@@ -1,5 +1,5 @@
 ---
-name: typescript
+name: web-typescript
 description: Expert in TypeScript development with best practices for type safety and clean code
 ---
 

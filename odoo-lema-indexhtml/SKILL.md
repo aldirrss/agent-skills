@@ -1,5 +1,5 @@
 ---
-name: lema-odoo-indexhtml
+name: odoo-lema-indexhtml
 description: Generate Odoo app store description pages (static/description/index.html) that comply with the official Odoo Apps Store guidelines. Use when creating, editing, or reviewing the static/description/index.html of a Lema Core Odoo module. Produces a tabless, JavaScript-free, Bootstrap 4 compliant page with Hero, Brand Banner, Demo Preview, Screenshots, Features, Architecture, Changelog, FAQ, Related Products, and Footer sections.
 ---
 

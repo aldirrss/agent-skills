@@ -1,5 +1,5 @@
 ---
-name: git-workflow
+name: devops-git-workflow
 description: Git conventions and workflow guidelines using Conventional Commits, branching strategies, and best practices for version control
 ---
 

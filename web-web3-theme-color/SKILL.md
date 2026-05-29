@@ -1,5 +1,5 @@
 ---
-name: web3-theme-color
+name: web-web3-theme-color
 description: Web3 color theme system for Next.js / React TypeScript projects with full dark & light mode support. Provides production-ready CSS Variables tokens, three brand-inspired presets (Solana, Polygon, Uniswap), glassmorphism and neon glow utilities, and integration patterns with Tailwind CSS v4 and next-themes. Use whenever the user wants to build a Web3 / crypto / DeFi / NFT interface, set up dark/light theming for a Next.js or React app with a Web3 aesthetic, or needs a color palette that evokes a blockchain product feel.
 ---
 

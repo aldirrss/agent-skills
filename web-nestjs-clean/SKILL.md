@@ -1,5 +1,5 @@
 ---
-name: nestjs-clean-typescript
+name: web-nestjs-clean
 description: Clean NestJS API development with TypeScript following SOLID principles, modular architecture, and comprehensive testing practices.
 ---
 
