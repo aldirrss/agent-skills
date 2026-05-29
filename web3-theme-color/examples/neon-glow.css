@@ -1,0 +1,84 @@
+/* ============================================================================
+ * Neon Glow — Web3 signature button & focus effects.
+ * Uses colored box-shadow rather than neutral gray for that "crypto" feel.
+ * ========================================================================== */
+
+/* Primary CTA — solid accent + glow on hover */
+.btn-neon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background-color: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-neon:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--glow-primary);
+}
+
+.btn-neon:active {
+  transform: translateY(0);
+}
+
+.btn-neon:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-primary), 0 0 0 3px var(--border-glow);
+}
+
+/* Outline variant — transparent fill, accent border, glow on hover */
+.btn-neon-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-primary);
+  background-color: transparent;
+  color: var(--accent-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.btn-neon-outline:hover {
+  background-color: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  box-shadow: var(--glow-primary);
+}
+
+/* Text link with subtle underline glow */
+.link-neon {
+  color: var(--accent-secondary);
+  text-decoration: none;
+  position: relative;
+  transition: text-shadow 0.2s;
+}
+
+.link-neon:hover {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent-secondary) 60%, transparent);
+}
+
+/* Animated pulse — for "live" / "active" indicators */
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--accent-secondary);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-secondary) 0%, transparent);
+  }
+}
+
+.dot-live {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-secondary);
+  animation: neon-pulse 2s infinite;
+}

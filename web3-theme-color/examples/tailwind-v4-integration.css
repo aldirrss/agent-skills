@@ -1,0 +1,58 @@
+/* ============================================================================
+ * Tailwind CSS v4 Integration
+ * Expose CSS Variables as Tailwind utilities via @theme.
+ *
+ * After this setup, you can use:
+ *   <div class="bg-bg-base text-text-primary border-border-default">
+ *   <button class="bg-accent-primary text-white shadow-glow-primary">
+ * ========================================================================== */
+
+@import "tailwindcss";
+@import "../presets/solana.css";  /* or polygon.css / uniswap.css */
+
+@theme {
+  /* Background */
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+
+  /* Border */
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-glow: var(--border-glow);
+
+  /* Text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  /* Accent */
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-tertiary: var(--accent-tertiary);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-mint: var(--accent-mint);
+
+  /* Status */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  /* Shadow / Glow (expose as box-shadow utilities) */
+  --shadow-glow-primary: var(--glow-primary);
+  --shadow-glow-secondary: var(--glow-secondary);
+}
+
+/* Custom utility classes for gradients (Tailwind v4 cannot generate these from variables) */
+@utility bg-gradient-hero {
+  background-image: var(--gradient-hero);
+}
+
+@utility bg-gradient-card {
+  background-image: var(--gradient-card);
+}
+
+@utility bg-gradient-glow {
+  background-image: var(--gradient-glow);
+}

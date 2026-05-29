@@ -1,0 +1,50 @@
+/* ============================================================================
+ * Glassmorphism — Frosted glass surfaces for Web3 cards & overlays.
+ *
+ * Browser support: backdrop-filter requires Safari 9+, Chrome 76+, Firefox 103+.
+ * Provide a solid fallback for older browsers.
+ * ========================================================================== */
+
+.glass-card {
+  /* Solid fallback */
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+}
+
+@supports (backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px)) {
+  .glass-card {
+    background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid color-mix(in srgb, var(--border-default) 50%, transparent);
+  }
+}
+
+/* Hover state — adds accent glow */
+.glass-card:hover {
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-md), var(--glow-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Modal/dialog variant — heavier blur, deeper background */
+.glass-modal {
+  background-color: color-mix(in srgb, var(--bg-elevated) 75%, transparent);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Backdrop scrim behind modals */
+.glass-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}

@@ -1,0 +1,86 @@
+/* ============================================================================
+ * Gradient Hero — Signature Web3 hero sections & headlines.
+ * Use sparingly: one hero per page, one gradient text per section.
+ * ========================================================================== */
+
+/* Full-bleed hero section with ambient glow */
+.hero-section {
+  position: relative;
+  padding: 96px 24px;
+  background-color: var(--bg-base);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero-section::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background-image: var(--gradient-glow);
+  opacity: 0.6;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Headline with gradient text fill */
+.hero-headline {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background-image: var(--gradient-hero);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Fallback for browsers without background-clip: text */
+@supports not (background-clip: text) {
+  .hero-headline {
+    color: var(--accent-primary);
+  }
+}
+
+/* Animated gradient — slow shift, for "premium" feel */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.hero-headline--animated {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Gradient button — primary CTA in hero */
+.btn-gradient {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 32px;
+  border-radius: 12px;
+  border: none;
+  background-image: var(--gradient-hero);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glow-primary);
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline--animated {
+    animation: none;
+  }
+  .btn-gradient {
+    transition: none;
+  }
+}

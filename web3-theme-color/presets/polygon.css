@@ -1,0 +1,89 @@
+/* ============================================================================
+ * Web3 Theme — Polygon Preset
+ * Signature: Violet mono (#8247E5)
+ * Vibe: Premium, serious, enterprise-grade
+ * Best for: Infrastructure DeFi, institutional products, dashboards
+ * ========================================================================== */
+
+[data-theme="dark"],
+:root {
+  color-scheme: dark;
+
+  --bg-base: #0B0A14;
+  --bg-surface: #14121F;
+  --bg-elevated: #1C1A2E;
+  --bg-overlay: rgba(11, 10, 20, 0.7);
+
+  --border-subtle: #1F1D30;
+  --border-default: #2C2944;
+  --border-glow: rgba(130, 71, 229, 0.4);
+
+  --text-primary: #F2F1F8;
+  --text-secondary: #A8A4C0;
+  --text-muted: #6E6A88;
+
+  --accent-primary: #8247E5;     /* Polygon Violet */
+  --accent-secondary: #A57BFF;   /* Lighter violet */
+  --accent-tertiary: #00E5FF;
+  --accent-gold: #FFB800;
+  --accent-mint: #00FFA3;
+
+  --success: #00C896;
+  --warning: #FFB800;
+  --danger: #FF3D71;
+  --info: #00E5FF;
+
+  --gradient-hero: linear-gradient(135deg, #8247E5 0%, #A57BFF 100%);
+  --gradient-card: linear-gradient(145deg, rgba(130, 71, 229, 0.15), rgba(165, 123, 255, 0.05));
+  --gradient-glow: radial-gradient(circle, rgba(130, 71, 229, 0.4) 0%, transparent 70%);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --glow-primary: 0 0 24px rgba(130, 71, 229, 0.5);
+  --glow-secondary: 0 0 24px rgba(165, 123, 255, 0.4);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-base: #FAFAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F3F1FA;
+  --bg-overlay: rgba(255, 255, 255, 0.7);
+
+  --border-subtle: #ECEAF5;
+  --border-default: #D8D4EA;
+  --border-glow: rgba(94, 53, 177, 0.25);
+
+  --text-primary: #0F0E1A;
+  --text-secondary: #4A4666;
+  --text-muted: #8A86A8;
+
+  --accent-primary: #5E35B1;     /* Royal Purple, darker for AA */
+  --accent-secondary: #7F58D1;
+  --accent-tertiary: #0097A7;
+  --accent-gold: #F57C00;
+  --accent-mint: #00A878;
+
+  --success: #00A878;
+  --warning: #F57C00;
+  --danger: #E53935;
+  --info: #0097A7;
+
+  --gradient-hero: linear-gradient(135deg, #5E35B1 0%, #7F58D1 100%);
+  --gradient-card: linear-gradient(145deg, rgba(94, 53, 177, 0.08), rgba(127, 88, 209, 0.04));
+  --gradient-glow: radial-gradient(circle, rgba(94, 53, 177, 0.15) 0%, transparent 70%);
+
+  --shadow-sm: 0 1px 2px rgba(15, 14, 26, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 14, 26, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 14, 26, 0.12);
+  --glow-primary: 0 0 24px rgba(94, 53, 177, 0.3);
+  --glow-secondary: 0 0 24px rgba(127, 88, 209, 0.25);
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

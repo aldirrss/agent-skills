@@ -1,0 +1,89 @@
+/* ============================================================================
+ * Web3 Theme — Uniswap Preset
+ * Signature: Hot Pink (#FF007A)
+ * Vibe: Bold, playful, anti-mainstream
+ * Best for: NFT marketplace, social DApp, GameFi
+ * ========================================================================== */
+
+[data-theme="dark"],
+:root {
+  color-scheme: dark;
+
+  --bg-base: #0F0A14;
+  --bg-surface: #1A121F;
+  --bg-elevated: #241A2E;
+  --bg-overlay: rgba(15, 10, 20, 0.7);
+
+  --border-subtle: #2A1F30;
+  --border-default: #3A2944;
+  --border-glow: rgba(255, 0, 122, 0.4);
+
+  --text-primary: #F8F1F5;
+  --text-secondary: #C0A4B4;
+  --text-muted: #886A78;
+
+  --accent-primary: #FF007A;     /* Uniswap Hot Pink */
+  --accent-secondary: #FF4D9D;
+  --accent-tertiary: #9945FF;
+  --accent-gold: #FFB800;
+  --accent-mint: #00FFA3;
+
+  --success: #00FFA3;
+  --warning: #FFB800;
+  --danger: #FF3D3D;
+  --info: #00E5FF;
+
+  --gradient-hero: linear-gradient(135deg, #FF007A 0%, #9945FF 100%);
+  --gradient-card: linear-gradient(145deg, rgba(255, 0, 122, 0.15), rgba(153, 69, 255, 0.05));
+  --gradient-glow: radial-gradient(circle, rgba(255, 0, 122, 0.4) 0%, transparent 70%);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --glow-primary: 0 0 24px rgba(255, 0, 122, 0.5);
+  --glow-secondary: 0 0 24px rgba(153, 69, 255, 0.4);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-base: #FCFAFB;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FAF3F7;
+  --bg-overlay: rgba(255, 255, 255, 0.7);
+
+  --border-subtle: #F5ECF1;
+  --border-default: #EAD4E0;
+  --border-glow: rgba(216, 27, 96, 0.25);
+
+  --text-primary: #1A0F14;
+  --text-secondary: #66464F;
+  --text-muted: #A88693;
+
+  --accent-primary: #D81B60;     /* Hot Pink, darker for AA */
+  --accent-secondary: #E94B8A;
+  --accent-tertiary: #7F35CF;
+  --accent-gold: #F57C00;
+  --accent-mint: #00A878;
+
+  --success: #00A878;
+  --warning: #F57C00;
+  --danger: #E53935;
+  --info: #0097A7;
+
+  --gradient-hero: linear-gradient(135deg, #D81B60 0%, #7F35CF 100%);
+  --gradient-card: linear-gradient(145deg, rgba(216, 27, 96, 0.08), rgba(127, 53, 207, 0.04));
+  --gradient-glow: radial-gradient(circle, rgba(216, 27, 96, 0.15) 0%, transparent 70%);
+
+  --shadow-sm: 0 1px 2px rgba(26, 15, 20, 0.06);
+  --shadow-md: 0 4px 12px rgba(26, 15, 20, 0.08);
+  --shadow-lg: 0 12px 32px rgba(26, 15, 20, 0.12);
+  --glow-primary: 0 0 24px rgba(216, 27, 96, 0.3);
+  --glow-secondary: 0 0 24px rgba(127, 53, 207, 0.25);
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

@@ -1,0 +1,111 @@
+/* ============================================================================
+ * Web3 Theme — Solana Preset (DEFAULT)
+ * Signature: Purple (#9945FF) → Mint (#14F195) gradient
+ * Vibe: Energetic, iconic, the most "Web3-coded" aesthetic
+ * ============================================================================
+ *
+ * Usage:
+ *   1. Import this file in app/globals.css (after Tailwind directives)
+ *   2. Wrap your app with next-themes ThemeProvider (attribute="data-theme")
+ *   3. Reference tokens via var(--token-name) in components or Tailwind @theme
+ * ========================================================================== */
+
+/* ------------------------------ DARK MODE ------------------------------- */
+[data-theme="dark"],
+:root {
+  color-scheme: dark;
+
+  /* Background */
+  --bg-base: #0A0A0F;
+  --bg-surface: #12121A;
+  --bg-elevated: #1A1A2E;
+  --bg-overlay: rgba(10, 10, 15, 0.7);
+
+  /* Border */
+  --border-subtle: #1F1F2E;
+  --border-default: #2A2A40;
+  --border-glow: rgba(153, 69, 255, 0.4);
+
+  /* Text */
+  --text-primary: #F4F4F8;
+  --text-secondary: #A0A0B8;
+  --text-muted: #6B6B85;
+
+  /* Accent — Solana signature */
+  --accent-primary: #9945FF;     /* Solana Purple */
+  --accent-secondary: #14F195;   /* Solana Mint Green */
+  --accent-tertiary: #00E5FF;    /* Cyber Cyan */
+  --accent-gold: #FFB800;        /* Crypto Gold */
+  --accent-mint: #14F195;
+
+  /* Status */
+  --success: #14F195;
+  --warning: #FFB800;
+  --danger: #FF3D71;
+  --info: #00E5FF;
+
+  /* Gradient — signature */
+  --gradient-hero: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
+  --gradient-card: linear-gradient(145deg, rgba(153, 69, 255, 0.15), rgba(20, 241, 149, 0.05));
+  --gradient-glow: radial-gradient(circle, rgba(153, 69, 255, 0.4) 0%, transparent 70%);
+
+  /* Shadow / Glow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --glow-primary: 0 0 24px rgba(153, 69, 255, 0.5);
+  --glow-secondary: 0 0 24px rgba(20, 241, 149, 0.4);
+}
+
+/* ------------------------------ LIGHT MODE ------------------------------ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Background */
+  --bg-base: #FAFAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F4F4FA;
+  --bg-overlay: rgba(255, 255, 255, 0.7);
+
+  /* Border */
+  --border-subtle: #EDEDF5;
+  --border-default: #DCDCEA;
+  --border-glow: rgba(127, 53, 207, 0.25);
+
+  /* Text */
+  --text-primary: #0F0F1A;
+  --text-secondary: #4A4A66;
+  --text-muted: #8A8AA8;
+
+  /* Accent — desaturated for WCAG AA on light bg */
+  --accent-primary: #7F35CF;     /* Solana Purple, darker */
+  --accent-secondary: #00A878;   /* Mint, deeper for contrast */
+  --accent-tertiary: #0097A7;
+  --accent-gold: #F57C00;
+  --accent-mint: #00A878;
+
+  /* Status */
+  --success: #00A878;
+  --warning: #F57C00;
+  --danger: #E53935;
+  --info: #0097A7;
+
+  /* Gradient */
+  --gradient-hero: linear-gradient(135deg, #7F35CF 0%, #00A878 100%);
+  --gradient-card: linear-gradient(145deg, rgba(127, 53, 207, 0.08), rgba(0, 168, 120, 0.04));
+  --gradient-glow: radial-gradient(circle, rgba(127, 53, 207, 0.15) 0%, transparent 70%);
+
+  /* Shadow / Glow */
+  --shadow-sm: 0 1px 2px rgba(15, 15, 26, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 15, 26, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 15, 26, 0.12);
+  --glow-primary: 0 0 24px rgba(127, 53, 207, 0.3);
+  --glow-secondary: 0 0 24px rgba(0, 168, 120, 0.25);
+}
+
+/* Base body styling — uses tokens so theme switch is instant */
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
