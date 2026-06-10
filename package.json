@@ -1,0 +1,26 @@
+{
+  "name": "@aldirrss/skills",
+  "version": "1.0.0",
+  "description": "Claude Code skill manager — install skills from aldirrss/dev-skills",
+  "bin": {
+    "skills": "./bin/skills.js"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "claude-code",
+    "skills",
+    "claude",
+    "ai"
+  ],
+  "author": "aldirrss",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aldirrss/dev-skills.git"
+  }
+}
