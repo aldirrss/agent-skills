@@ -1,8 +1,5 @@
 # [PROJECT_NAME] — Architecture
 
-> Copy file ini ke `docs/ARCHITECTURE.md` di dalam project kamu.
-> Ganti `[PROJECT_NAME]` dengan nama project kamu.
-
 ## Overview
 
 [PROJECT_NAME] adalah platform otomasi trading crypto futures berbasis web.

@@ -1,10 +1,5 @@
 # [PROJECT_NAME]
 
-> Copy file ini ke `CLAUDE.md` di root project kamu.
-> Ganti nama file menjadi `CLAUDE.md`. Sesuaikan bagian yang bertanda [SESUAIKAN].
-
----
-
 ## Project
 
 **[PROJECT_NAME]** — platform otomasi trading crypto futures berbasis web.

@@ -1,8 +1,5 @@
 # [PROJECT_NAME] — Roadmap
 
-> Copy file ini ke `docs/ROADMAP.md` di dalam project kamu.
-> Ganti `[PROJECT_NAME]` dengan nama project kamu.
-
 ## Visi
 
 Platform trading futures crypto yang bisa dikonfigurasi sepenuhnya dari dashboard web,
