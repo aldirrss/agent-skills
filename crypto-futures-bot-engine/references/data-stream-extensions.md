@@ -327,7 +327,7 @@ crash, it will simply produce no data (strategies degrade gracefully).
 ### `requirements.txt` addition
 
 ```
-websockets>=12.0
+websockets
 ```
 
 `ccxt.pro` already depends on `aiohttp`/`websockets` internally, so this is

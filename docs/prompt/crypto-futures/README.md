@@ -24,7 +24,7 @@ komponen — jangan loncat fase.
 05-strategies.md        → Implementasi 6 strategi di strategy_worker.py
 06-api-server.md        → FastAPI server, auth, endpoints, WebSocket
 07-monitoring.md        → Metrics, health, alerts, Telegram
-08-dashboard.md         → Next.js 14 dashboard
+08-dashboard.md         → Next.js (latest) dashboard
 ```
 
 ## Tips
@@ -87,7 +87,7 @@ crypto-futures-bot/
 │   └── alerts/
 │       ├── rules.py
 │       └── notifier.py
-├── dashboard/               ← Next.js 14
+├── dashboard/               ← Next.js (latest)
 │   ├── app/
 │   ├── components/
 │   └── lib/

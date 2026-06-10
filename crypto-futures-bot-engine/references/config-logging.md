@@ -13,14 +13,14 @@ Pydantic Settings, Loguru setup, and health heartbeat. Read this first — every
 ## Dependencies
 
 ```toml
-# pyproject.toml / requirements.txt
-pydantic-settings>=2.0
-loguru>=0.7
-redis[asyncio]>=5.0
-ccxt[async]>=4.0          # ccxt.pro included
-sqlmodel>=0.0.16
-asyncpg>=0.29
-httpx>=0.27               # LLM API calls
+# pyproject.toml / requirements.txt — use latest stable for all
+pydantic-settings
+loguru
+redis[asyncio]
+ccxt[async]               # ccxt.pro included
+sqlmodel
+asyncpg
+httpx                     # LLM API calls
 ```
 
 ---

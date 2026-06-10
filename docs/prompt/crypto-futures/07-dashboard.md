@@ -1,6 +1,6 @@
 # Fase 07 — Dashboard (Next.js)
 
-Tujuan: Next.js 14 App Router dashboard dengan real-time WebSocket, charts, dan bot controls.
+Tujuan: Next.js (latest) App Router dashboard dengan real-time WebSocket, charts, dan bot controls.
 Prasyarat: API server (Fase 05) sudah berjalan dan bisa diakses.
 
 ---
@@ -10,8 +10,8 @@ Prasyarat: API server (Fase 05) sudah berjalan dan bisa diakses.
 ```
 Gunakan @crypto-futures-bot-dashboard untuk konteks lengkap dashboard.
 
-Inisialisasi Next.js 14 project di folder dashboard/:
-- next: 14, TypeScript, App Router, Tailwind CSS
+Inisialisasi Next.js (latest) project di folder dashboard/:
+- next: latest, TypeScript, App Router, Tailwind CSS
 - Install dependencies:
   shadcn/ui (init dengan default theme dark)
   lightweight-charts@4

@@ -1,6 +1,6 @@
 ---
 name: crypto-futures-bot-dashboard
-description: Next.js 14 trading bot dashboard with real-time WebSocket, lightweight-charts candlestick charts, position monitoring, and bot controls. Use this whenever the user is building any part of the trading bot frontend — pages, components, WebSocket hooks, charts, position cards, trade history, or bot control UI. Trigger on mentions of dashboard, position monitor, equity curve, candlestick chart, bot control panel, add symbol form, emergency stop button, trade history table, or performance metrics UI. Requires crypto-futures-bot-architecture for API endpoints and WebSocket event schema.
+description: Next.js (latest) trading bot dashboard with real-time WebSocket, lightweight-charts candlestick charts, position monitoring, and bot controls. Use this whenever the user is building any part of the trading bot frontend — pages, components, WebSocket hooks, charts, position cards, trade history, or bot control UI. Trigger on mentions of dashboard, position monitor, equity curve, candlestick chart, bot control panel, add symbol form, emergency stop button, trade history table, or performance metrics UI. Requires crypto-futures-bot-architecture for API endpoints and WebSocket event schema.
 requires:
   - crypto-futures-bot-architecture
   - crypto-futures-bot-api
@@ -8,18 +8,18 @@ requires:
 
 # Crypto Futures Bot Dashboard
 
-Next.js 14 App Router + Tailwind CSS + shadcn/ui + lightweight-charts. Multi-page trading dashboard that connects to the FastAPI bot engine via REST and WebSocket.
+Next.js (App Router, latest) + Tailwind CSS + shadcn/ui + lightweight-charts. Multi-page trading dashboard that connects to the FastAPI bot engine via REST and WebSocket.
 
 ## Tech Stack
 
 ```
-next: 14 (App Router)
-tailwindcss: 3
+next: latest (App Router)
+tailwindcss: latest
 shadcn/ui: latest          (Card, Table, Badge, Dialog, Form, Select, Toast)
-lightweight-charts: 4      (candlestick + equity curve)
-@tanstack/react-query: 5   (server state, REST fetching)
-zustand: 4                 (client state: WS events, bot status)
-lucide-react               (icons)
+lightweight-charts: latest (candlestick + equity curve)
+@tanstack/react-query: latest (server state, REST fetching)
+zustand: latest            (client state: WS events, bot status)
+lucide-react: latest       (icons)
 ```
 
 ## Page Map

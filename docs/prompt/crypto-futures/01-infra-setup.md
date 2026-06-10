@@ -110,47 +110,48 @@ Jangan isi nilai sensitif — semua placeholder.
 ```
 Buat pyproject.toml di root proyek dengan konfigurasi:
 - build-system: setuptools
-- Python >= 3.11
+- Python: versi terbaru yang stable (minimal 3.11)
 
-Buat requirements file terpisah per service:
+Buat requirements file terpisah per service — gunakan versi latest/terbaru
+untuk semua package, tanpa pin versi spesifik:
 
 bot_engine/requirements.txt:
-- ccxt>=4.3
+- ccxt
 - ccxt[async]
-- redis[asyncio]>=5.0
-- asyncpg>=0.29
-- sqlmodel>=0.0.18
-- sqlalchemy[asyncio]>=2.0
-- alembic>=1.13
-- pydantic-settings>=2.0
-- loguru>=0.7
-- pandas>=2.0
-- pandas-ta>=0.3
-- websockets>=12.0
-- httpx>=0.27
+- redis[asyncio]
+- asyncpg
+- sqlmodel
+- sqlalchemy[asyncio]
+- alembic
+- pydantic-settings
+- loguru
+- pandas
+- pandas-ta
+- websockets
+- httpx
 
 api_server/requirements.txt:
-- fastapi>=0.111
-- uvicorn[standard]>=0.29
-- redis[asyncio]>=5.0
-- asyncpg>=0.29
-- sqlmodel>=0.0.18
-- sqlalchemy[asyncio]>=2.0
-- pydantic-settings>=2.0
-- loguru>=0.7
-- bcrypt>=4.1
-- python-multipart>=0.0.9
+- fastapi
+- uvicorn[standard]
+- redis[asyncio]
+- asyncpg
+- sqlmodel
+- sqlalchemy[asyncio]
+- pydantic-settings
+- loguru
+- bcrypt
+- python-multipart
 
 monitoring/requirements.txt:
-- redis[asyncio]>=5.0
-- asyncpg>=0.29
-- sqlmodel>=0.0.18
-- sqlalchemy[asyncio]>=2.0
-- pydantic-settings>=2.0
-- loguru>=0.7
-- httpx>=0.27
+- redis[asyncio]
+- asyncpg
+- sqlmodel
+- sqlalchemy[asyncio]
+- pydantic-settings
+- loguru
+- httpx
 
-Buat juga Dockerfile minimal (python:3.11-slim) untuk masing-masing service
+Buat juga Dockerfile minimal (python:latest-slim) untuk masing-masing service
 di direktori service masing-masing. Gunakan non-root user, copy requirements,
 pip install, copy source.
 ```
