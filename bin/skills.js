@@ -6,7 +6,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
-const REPO = { owner: 'aldirrss', name: 'dev-skills', branch: 'main' }
+const REPO = { owner: 'aldirrss', name: 'agent-skills', branch: 'main' }
 const SKILLS_ROOT = 'skills'
 const DEFAULT_INSTALL_DIR = path.join(os.homedir(), '.claude', 'skills')
 
@@ -261,7 +261,9 @@ async function main() {
   // strip --target <value> from args
   const tIdx = argv.indexOf('--target')
   const destDir = tIdx !== -1 ? path.resolve(argv[tIdx + 1]) : DEFAULT_INSTALL_DIR
-  const cleanArgs = argv.filter((_, i) => i !== tIdx && i !== tIdx + 1)
+  const cleanArgs = tIdx === -1
+    ? argv
+    : argv.filter((_, i) => i !== tIdx && i !== tIdx + 1)
 
   const [cmd, ...cmdArgs] = cleanArgs
 
