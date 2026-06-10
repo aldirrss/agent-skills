@@ -356,3 +356,18 @@ Buat 3 file berikut:
    - Jangan block event loop: jalankan semua symbol concurrently
    - Graceful: jika LLM gagal, biarkan cache lama expire secara natural
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › Core Bot Engine:
+
+- [ ] DataCollector: WebSocket OHLCV + CVD per symbol
+- [ ] StrategyWorker: 6 strategies (trend, breakout, momentum, sr_bounce, funding, liquidation)
+- [ ] RiskManager: 5 gate checks + position sizing
+- [ ] OrderExecutor: market entry + SL/TP at exchange
+- [ ] PositionTracker: Redis state + PostgreSQL sync
+- [ ] PositionManager: trailing stop, break-even, partial TP, time exit
+- [ ] LiquidationCollector: Binance forceOrder WebSocket
+- [ ] LLMSignalAgent: confluence signal from LLM provider

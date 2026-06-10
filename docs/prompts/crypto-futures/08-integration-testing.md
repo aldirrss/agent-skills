@@ -140,3 +140,11 @@ testnet ke production:
 
 JANGAN mulai live trading sampai semua item ✓.
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › Infrastructure:
+
+- [ ] Smoke test script

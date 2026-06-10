@@ -225,3 +225,15 @@ Buat dua file utility:
    - Konsisten dengan schema di @crypto-futures-bot-api
    - Gunakan string untuk semua nilai finansial (bukan number)
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › Dashboard:
+
+- [ ] Login page
+- [ ] Overview: bot status + active positions
+- [ ] Position cards: real-time PnL, SL/TP, pm_stage
+- [ ] Quick actions: emergency stop, pause/resume
+- [ ] Add symbol form: strategy, leverage, risk config

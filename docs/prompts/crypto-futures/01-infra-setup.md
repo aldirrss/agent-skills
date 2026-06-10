@@ -179,3 +179,12 @@ Setup Alembic untuk database migration di dalam bot_engine/:
 
 Gunakan @crypto-futures-bot-db-schema untuk konteks schema yang akan dimigrate.
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › Infrastructure:
+
+- [ ] Docker Compose (redis, postgres, bot_engine, api_server, monitoring)
+- [ ] .env.example with all required variables

@@ -196,3 +196,14 @@ Buat dua file:
         * JSON command: forward via send_command(), response via pub/sub broadcast
       - finally: manager.disconnect(ws)
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › API Server:
+
+- [ ] Auth: login/logout with HttpOnly cookie
+- [ ] Bot control: add/remove symbol, pause, resume, emergency stop
+- [ ] Data endpoints: trades, performance metrics, equity curve
+- [ ] WebSocket relay: real-time broadcast to dashboard

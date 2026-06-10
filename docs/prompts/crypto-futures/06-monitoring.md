@@ -131,3 +131,13 @@ Buat monitoring/alerts/rules.py:
 - CRITICAL_RULES, WARNING_RULES, INFO_RULES lists
 - Sesuaikan dengan rules di @crypto-futures-bot-monitoring references/alert-rules.md
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › Monitoring:
+
+- [ ] Health heartbeat check
+- [ ] CRITICAL alert: position without SL coverage
+- [ ] Telegram notifications

@@ -86,3 +86,11 @@ Buat bot_engine/db/queries.py dengan fungsi-fungsi async berikut:
 Semua fungsi menggunakan select() dari sqlalchemy, bukan query string.
 Return values menggunakan Decimal untuk semua angka finansial.
 ```
+
+---
+
+## Roadmap
+
+Selesai? Tandai di `docs/ROADMAP.md` → Phase 1 › Infrastructure:
+
+- [ ] Alembic initial schema migration
