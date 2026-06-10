@@ -31,8 +31,45 @@ async def make_redis(url: str = "redis://localhost:6379") -> aioredis.Redis:
 
 All stream messages use flat string dicts (Redis requirement). Deserialize immediately after reading.
 
+### `stream.pre_signals` *(optional — only active when `crypto-futures-agent` is enabled)*
+Published by: StrategyWorker (when `pre_signal_threshold <= score < signal_threshold`)
+Consumed by: AgentConfirmer (consumer group `agent_confirmer`)
+
+```python
+# WRITE (StrategyWorker — medium confidence band)
+await redis.xadd("stream.pre_signals", {
+    "symbol":    "BTCUSDT",
+    "direction": "long",
+    "strategy":  "trend",
+    "score":     "0.45",          # Decimal string
+    "entry":     "67234.50",
+    "sl":        "66800.00",
+    "tp":        "68100.00",
+    "atr":       "420.00",
+    "tf":        "15m",
+    "ts":        "1718000000.0",
+    "candle_ts": "1718000000000",
+    "context":   "{...}",         # JSON: indicators pre-packaged for agent
+})
+
+# READ (AgentConfirmer)
+entries = await redis.xreadgroup(
+    groupname="agent_confirmer", consumername="confirmer_1",
+    streams={"stream.pre_signals": ">"},
+    count=5, block=2000,
+)
+# After approve: xadd("stream.signals", approved_signal)
+# After reject:  xack only, signal discarded
+```
+
+AgentConfirmer publishes approved signals to `stream.signals` with additional fields:
+`agent_confidence` (Decimal string), `agent_reason` (string).
+The `context` field is removed before forwarding to keep message size small.
+
+---
+
 ### `stream.signals`
-Published by: StrategyWorker  
+Published by: StrategyWorker (high confidence, score >= signal_threshold) or AgentConfirmer (approved pre-signals)
 Consumed by: RiskManager (consumer group `risk-manager`)
 
 ```python

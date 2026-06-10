@@ -173,6 +173,63 @@ cvd.candles.{symbol}.{tf}   LIST: CVD per candle (maxlen 500)
 - **WebSocket dashboard** — on connect, the server immediately pushes initial state (all positions + bot status) so the dashboard is never blank waiting for the first event.
 - **Use testnet first** before live trading. Set `is_testnet: true` in config.worker.{symbol}.
 
+## Agent Layer *(optional — requires `crypto-futures-agent` skill)*
+
+Only fill this section if you are using the AI confirmation layer.
+
+### Additional Mandatory Rules (Agent Layer)
+
+11. **Agent never places orders** — `AgentConfirmer` output is always approve/reject into `stream.signals`. No direct order calls.
+12. **`AGENT_PASSTHROUGH_ON_FAIL=true` is the safe default** — trading must never be blocked by LLM downtime.
+13. **LLM API keys via env var only** — same rule as exchange keys: `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, etc. Never in Redis or DB.
+14. **Decimal for refined SL/TP from agent** — validate via `_safe_decimal()` before use. Discard refinement (keep original) if parsing fails.
+15. **One asyncio.Lock per symbol in AgentConfirmer** — same pattern as OrderExecutor.
+16. **Do not call LLM if position already open** — check `state.position.{symbol}` before LLM call; discard pre-signal if position exists.
+
+### Agent Environment Variables
+
+```bash
+# Agent Layer (optional)
+AGENT_ENABLED=true
+AGENT_PROVIDER=groq                       # primary provider
+AGENT_FALLBACK_CHAIN=openrouter,deepseek  # comma-separated fallback order
+AGENT_PRE_SIGNAL_THRESHOLD=0.4
+AGENT_PASSTHROUGH_ON_FAIL=true
+AGENT_TIMEOUT_SECONDS=20
+
+# Key pools — append _1 _2 _3 for multiple keys per provider
+GROQ_API_KEY_1=
+GROQ_API_KEY_2=
+GROQ_API_KEY_3=
+OPENROUTER_API_KEY_1=
+DEEPSEEK_API_KEY_1=
+GEMINI_API_KEY_1=
+OPENAI_API_KEY_1=
+ANTHROPIC_API_KEY_1=
+```
+
+### Additional Redis Keys (Agent Layer)
+
+```
+stream.pre_signals                       Stream: candidate signals pending agent review
+llm.pool.{provider}.{idx}.requests_today counter (TTL 86400s — auto daily reset)
+llm.pool.{provider}.{idx}.tokens_today   counter (TTL 86400s)
+llm.pool.{provider}.{idx}.cooldown_until float unix ts (set on 429)
+llm.pool.{provider}.rotation_idx         int — round-robin pointer
+```
+
+### config.worker.{symbol} Additional Fields (Agent Layer)
+
+```json
+{
+    "signal_threshold":     0.6,
+    "pre_signal_threshold": 0.4,
+    "agent_enabled":        "true"
+}
+```
+
+---
+
 ## [CUSTOMIZE] Project-Specific Info
 
 ```

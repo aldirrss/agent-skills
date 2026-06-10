@@ -106,6 +106,20 @@ async def main() -> None:
     cmd_listener     = CommandListener(redis, registry, order_executor,
                                        position_tracker, settings)
 
+    # ── Agent Confirmer (optional — crypto-futures-agent skill) ──────
+    # Only instantiate if AGENT_ENABLED=true in environment.
+    # AgentConfirmer sits between StrategyWorker and RiskManager.
+    # Import and AgentConfig are only needed when agent skill is installed.
+    agent_confirmer = None
+    try:
+        from config import AgentConfig
+        from components.agent_confirmer import AgentConfirmer
+        agent_config = AgentConfig()
+        if agent_config.agent_enabled:
+            agent_confirmer = AgentConfirmer(redis=redis, agent_config=agent_config)
+    except ImportError:
+        pass  # crypto-futures-agent skill not installed
+
     # ── Register SIGTERM/SIGINT ──────────────────────────────────────
     _register_signals(stop_event)
 
@@ -131,6 +145,9 @@ async def main() -> None:
         asyncio.create_task(db_writer.run(stop_event),          name="db_writer"),
         asyncio.create_task(cmd_listener.run(stop_event),       name="command_listener"),
         asyncio.create_task(llm_agent.run(stop_event),          name="llm_agent"),
+        # Agent Confirmer — optional, only added if instantiated above
+        *([asyncio.create_task(agent_confirmer.run(stop_event), name="agent_confirmer")]
+          if agent_confirmer else []),
         asyncio.create_task(
             run_health_heartbeat(redis, registry, stop_event),  name="health_heartbeat"
         ),

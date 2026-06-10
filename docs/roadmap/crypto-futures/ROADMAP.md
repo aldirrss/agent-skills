@@ -46,6 +46,13 @@ Dashboard is accessible from a browser. Positions are always protected.
 - [ ] Alembic initial schema migration
 - [ ] Smoke test script
 
+### Agent Layer *(optional — requires `crypto-futures-agent` skill)*
+- [ ] AgentConfig + multi-provider key pool setup
+- [ ] AgentConfirmer component (confirmation gate)
+- [ ] StrategyWorker dual-threshold publishing (pre_signal_threshold)
+- [ ] Provider fallback chain (Groq → OpenRouter → DeepSeek)
+- [ ] Passthrough fail-safe validated on testnet
+
 ---
 
 ## Phase 2 — Full Dashboard

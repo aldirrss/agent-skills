@@ -111,14 +111,71 @@ async def _evaluate_and_publish(symbol: str, config: dict,
             "strategy":  config["strategy"],
             "signal_ts": str(int(time.time() * 1000)),
         })
-        await redis.xadd("stream.signals", signal, maxlen=100_000, approximate=True)
-        log.info("Signal published",
-                 direction=signal["direction"],
-                 confidence=signal["confidence"],
-                 regime=signal.get("regime", "?"))
+
+        # ── Dual-threshold publishing (optional agent layer) ─────────
+        # Requires crypto-futures-agent skill. If agent is not configured,
+        # signal_threshold == pre_signal_threshold so only the first branch runs.
+        score              = float(signal.get("confidence", 0))
+        signal_threshold   = float(config.get("signal_threshold", 0.6))
+        pre_threshold      = float(config.get("pre_signal_threshold", signal_threshold))
+        agent_enabled      = config.get("agent_enabled", "false").lower() == "true"
+
+        if score >= signal_threshold:
+            # High confidence — bypass agent, publish directly
+            await redis.xadd("stream.signals", signal, maxlen=100_000, approximate=True)
+            log.info("Signal published (direct)",
+                     direction=signal["direction"], confidence=score)
+
+        elif agent_enabled and score >= pre_threshold:
+            # Medium confidence — send to AgentConfirmer for review
+            context = _build_agent_context(symbol, df, signal, cvd_df, liq_s)
+            pre_signal = {**signal, "context": json.dumps(context)}
+            await redis.xadd("stream.pre_signals", pre_signal, maxlen=10_000, approximate=True)
+            log.info("Pre-signal published (agent review)",
+                     direction=signal["direction"], confidence=score)
+        # else: score below both thresholds — discard silently
 
     except Exception:
         log.exception("Error evaluating strategy")
+
+
+def _build_agent_context(
+    symbol: str,
+    df: pd.DataFrame,
+    signal: dict,
+    cvd_df,
+    liq_s: dict | None,
+) -> dict:
+    """Pre-package indicator snapshot for AgentConfirmer. Avoids agent needing extra Redis calls."""
+    import pandas_ta as ta
+    close = df["close"]
+    ctx: dict = {}
+    try:
+        ctx["ema9"]  = round(float(ta.ema(close, 9).iloc[-1]),  2)
+        ctx["ema21"] = round(float(ta.ema(close, 21).iloc[-1]), 2)
+        ctx["ema50"] = round(float(ta.ema(close, 50).iloc[-1]), 2)
+        ctx["rsi"]   = round(float(ta.rsi(close, 14).iloc[-1]), 2)
+        vol = df["volume"]
+        ctx["volume_ratio"] = round(float(vol.iloc[-1] / vol.iloc[-20:].mean()), 2)
+    except Exception:
+        pass
+
+    if cvd_df is not None and not cvd_df.empty:
+        try:
+            ctx["cvd_delta"] = int(cvd_df["delta"].iloc[-1])
+        except Exception:
+            pass
+
+    if liq_s:
+        ctx["liq_long_5m"]  = str(liq_s.get("long_usd",  0))
+        ctx["liq_short_5m"] = str(liq_s.get("short_usd", 0))
+
+    # Carry over funding if already in signal
+    for key in ("funding_rate", "funding_percentile"):
+        if key in signal:
+            ctx[key] = signal[key]
+
+    return ctx
 ```
 
 ---

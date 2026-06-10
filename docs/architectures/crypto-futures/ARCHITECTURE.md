@@ -258,6 +258,39 @@ All open browser tabs (including newly connected tabs)
 
 ---
 
+## Agent Layer *(optional — requires `crypto-futures-agent` skill)*
+
+An AI confirmation gate can be inserted between `StrategyWorker` and `RiskManager`.
+Rule-based strategies continue to run as the first filter. Candidate signals in the
+medium-confidence band are forwarded to `AgentConfirmer` for LLM approval before
+entering the execution pipeline.
+
+```
+StrategyWorker
+    │ score >= pre_signal_threshold (e.g. 0.4)
+    ↓
+stream.pre_signals               ← new Redis Stream (only active when agent enabled)
+    │
+AgentConfirmer                   ← new asyncio task in bot_engine
+    │  ProviderRouter → KeyPoolManager → LLM call
+    │  approve → optionally refine SL/TP → stream.signals
+    │  reject  → discard with reason logged
+    │  fail    → passthrough to stream.signals (fail-safe)
+    ↓
+stream.signals                   ← RiskManager onwards unchanged
+```
+
+**Key properties:**
+- Agent never places orders — output is always approve/reject
+- `AGENT_PASSTHROUGH_ON_FAIL=true` ensures trading is never blocked by LLM downtime
+- Multi-provider with key pooling: Groq, Gemini, OpenRouter, DeepSeek, OpenAI, Anthropic
+- Per-provider multiple API keys for TPM/RPD scaling (free tier friendly)
+- Disabled by default — set `AGENT_ENABLED=true` and configure at least one provider key
+
+See `crypto-futures-agent` skill for full implementation.
+
+---
+
 ## Skills Used
 
 | Component | Skill |
@@ -270,3 +303,5 @@ All open browser tabs (including newly connected tabs)
 | API server (FastAPI, auth, WebSocket) | `crypto-futures-bot-api` |
 | Monitoring, alerts, Telegram | `crypto-futures-bot-monitoring` |
 | Dashboard (Next.js, charts, controls) | `crypto-futures-bot-dashboard` |
+| AI signal confirmation gate *(optional)* | `crypto-futures-agent` |
+| Multi-agent specialist pipeline *(optional, draft)* | `crypto-futures-multi-agent` |
