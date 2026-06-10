@@ -1,6 +1,7 @@
-# cdexio-futures — Roadmap
+# [PROJECT_NAME] — Roadmap
 
-> Copy file ini ke `docs/ROADMAP.md` di dalam project cdexio-futures.
+> Copy file ini ke `docs/ROADMAP.md` di dalam project kamu.
+> Ganti `[PROJECT_NAME]` dengan nama project kamu.
 
 ## Visi
 
@@ -113,4 +114,4 @@ Dashboard bisa dipantau dari browser. Posisi selalu terlindungi.
 | Single admin user (bcrypt hash di .env) | Tidak bisa multi-user | Out of scope |
 | Uvicorn workers=1 | Tidak bisa horizontal scale API | Acceptable untuk single-user |
 | Exponential backoff tidak ada di DataCollector | Steady retry saat exchange down | Disengaja — keep trying |
-| sr-bounce.md belum ada implementasi penuh | Strategy sr_bounce butuh review | Phase 2 |
+| sr-bounce strategy butuh review | Strategy sr_bounce belum production-ready | Phase 2 |

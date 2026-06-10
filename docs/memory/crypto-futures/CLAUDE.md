@@ -1,13 +1,13 @@
-# cdexio-futures
+# [PROJECT_NAME]
 
-> Copy file ini ke `CLAUDE.md` di root project cdexio-futures.
+> Copy file ini ke `CLAUDE.md` di root project kamu.
 > Ganti nama file menjadi `CLAUDE.md`. Sesuaikan bagian yang bertanda [SESUAIKAN].
 
 ---
 
 ## Project
 
-**cdexio-futures** — platform otomasi trading crypto futures berbasis web.
+**[PROJECT_NAME]** — platform otomasi trading crypto futures berbasis web.
 Single-user, self-hosted. Trader connect akun exchange mereka, pilih strategi,
 pantau posisi via dashboard real-time.
 
@@ -39,7 +39,7 @@ Selalu load skill yang sesuai saat mengerjakan komponen:
 ## Struktur Project
 
 ```
-cdexio-futures/
+[PROJECT_NAME]/
 ├── bot_engine/
 │   ├── main.py                  ← entry point asyncio
 │   ├── config.py                ← Pydantic Settings
@@ -138,11 +138,11 @@ cd dashboard && npm run dev              # start Next.js dev server
 
 ```bash
 REDIS_URL=redis://:password@localhost:6379/0
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost/cdexio
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/[db_name]
 ADMIN_PASSWORD_HASH=<bcrypt hash>
 SESSION_SECRET=<32 bytes hex>
-EXCHANGE_1_KEY=<binance api key>
-EXCHANGE_1_SECRET=<binance api secret>
+EXCHANGE_1_KEY=<api key>
+EXCHANGE_1_SECRET=<api secret>
 LLM_PROVIDER=openai
 LLM_API_KEY=<openai key>
 TELEGRAM_BOT_TOKEN=<bot token>

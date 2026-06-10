@@ -1,10 +1,11 @@
-# cdexio-futures — Architecture
+# [PROJECT_NAME] — Architecture
 
-> Copy file ini ke `docs/ARCHITECTURE.md` di dalam project cdexio-futures.
+> Copy file ini ke `docs/ARCHITECTURE.md` di dalam project kamu.
+> Ganti `[PROJECT_NAME]` dengan nama project kamu.
 
 ## Overview
 
-cdexio-futures adalah platform otomasi trading crypto futures berbasis web.
+[PROJECT_NAME] adalah platform otomasi trading crypto futures berbasis web.
 Pengguna dapat menghubungkan akun exchange mereka, memilih strategi trading,
 dan memantau posisi serta performa secara real-time melalui dashboard web.
 
@@ -140,7 +141,6 @@ VPS (min 2 vCPU, 4GB RAM)
 ```
 
 ### Redis key space
-Dikelola oleh bot engine. Full schema di `crypto-futures-bot-architecture` skill.
 
 ```
 state.bot.status          running | paused | stopped
@@ -156,8 +156,9 @@ bot.status                PubSub channel: status update
 position.updates          PubSub channel: update posisi real-time
 ```
 
+Full schema di `crypto-futures-bot-architecture` skill.
+
 ### PostgreSQL schema
-Full DDL di `crypto-futures-bot-db-schema` skill.
 
 ```
 accounts      exchange accounts (api_key_ref ke env var, bukan key langsung)
@@ -166,6 +167,8 @@ trades        immutable trade log (entry/exit/pnl/fee)
 signals       sinyal yang di-act (untuk analisis strategi)
 daily_pnl     snapshot harian untuk equity curve
 ```
+
+Full DDL di `crypto-futures-bot-db-schema` skill.
 
 ---
 
