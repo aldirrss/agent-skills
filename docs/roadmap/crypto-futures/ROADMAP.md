@@ -1,103 +1,103 @@
 # [PROJECT_NAME] — Roadmap
 
-## Visi
+## Vision
 
-Platform trading futures crypto yang bisa dikonfigurasi sepenuhnya dari dashboard web,
-tanpa perlu menyentuh kode atau CLI. Trader fokus pada strategi — platform yang handle eksekusi.
+A fully configurable crypto futures trading platform managed entirely from a web dashboard,
+no code or CLI access required. Traders focus on strategy — the platform handles execution.
 
 ---
 
-## Phase 1 — MVP (Self-hosted, Single User)
+## Phase 1 — MVP
 
-**Target:** Bot bisa berjalan end-to-end dengan satu akun exchange dan satu strategi aktif.
-Dashboard bisa dipantau dari browser. Posisi selalu terlindungi.
+**Goal:** Bot runs end-to-end with at least one exchange account and one active strategy.
+Dashboard is accessible from a browser. Positions are always protected.
 
 ### Core Bot Engine
 - [ ] DataCollector: WebSocket OHLCV + CVD per symbol
-- [ ] StrategyWorker: 6 strategi (trend, breakout, momentum, sr_bounce, funding, liquidation)
+- [ ] StrategyWorker: 6 strategies (trend, breakout, momentum, sr_bounce, funding, liquidation)
 - [ ] RiskManager: 5 gate checks + position sizing
-- [ ] OrderExecutor: market entry + SL/TP di exchange
-- [ ] PositionTracker: state Redis + sync PostgreSQL
+- [ ] OrderExecutor: market entry + SL/TP at exchange
+- [ ] PositionTracker: Redis state + PostgreSQL sync
 - [ ] PositionManager: trailing stop, break-even, partial TP, time exit
 - [ ] LiquidationCollector: Binance forceOrder WebSocket
-- [ ] LLMSignalAgent: confluence signal dari LLM provider
+- [ ] LLMSignalAgent: confluence signal from LLM provider
 
 ### API Server
-- [ ] Auth: login/logout dengan HttpOnly cookie
+- [ ] Auth: login/logout with HttpOnly cookie
 - [ ] Bot control: add/remove symbol, pause, resume, emergency stop
 - [ ] Data endpoints: trades, performance metrics, equity curve
-- [ ] WebSocket relay: real-time broadcast ke dashboard
+- [ ] WebSocket relay: real-time broadcast to dashboard
 
 ### Dashboard
 - [ ] Login page
-- [ ] Overview: status bot + active positions
+- [ ] Overview: bot status + active positions
 - [ ] Position cards: real-time PnL, SL/TP, pm_stage
 - [ ] Quick actions: emergency stop, pause/resume
 - [ ] Add symbol form: strategy, leverage, risk config
 
 ### Monitoring
 - [ ] Health heartbeat check
-- [ ] CRITICAL alert: posisi tanpa SL coverage
+- [ ] CRITICAL alert: position without SL coverage
 - [ ] Telegram notifications
 
 ### Infrastructure
 - [ ] Docker Compose (redis, postgres, bot_engine, api_server, monitoring)
-- [ ] .env.example dengan semua variabel
-- [ ] Alembic migration initial schema
+- [ ] .env.example with all required variables
+- [ ] Alembic initial schema migration
 - [ ] Smoke test script
 
 ---
 
-## Phase 2 — Dashboard Lengkap
+## Phase 2 — Full Dashboard
 
-**Target:** User bisa mengelola semua aspek bot dari dashboard tanpa perlu akses server.
+**Goal:** Users can manage all bot aspects from the dashboard without server access.
 
-- [ ] Trade history table dengan filter dan pagination
+- [ ] Trade history table with filters and pagination
 - [ ] Performance metrics: win rate, profit factor, max drawdown
 - [ ] Equity curve chart (lightweight-charts)
-- [ ] Candlestick chart per symbol dengan SL/TP lines
+- [ ] Candlestick chart per symbol with SL/TP lines
 - [ ] Settings page: manage accounts + workers + alert config
-- [ ] Update strategy config tanpa restart (hot-reload)
-- [ ] Notifikasi in-dashboard (toast) untuk semua bot events
+- [ ] Update strategy config without restart (hot-reload)
+- [ ] In-dashboard notifications (toast) for all bot events
 - [ ] Mobile-responsive layout
 
 ---
 
 ## Phase 3 — Multi-Exchange & Strategy Tuning
 
-**Target:** Support lebih dari satu exchange, dan user bisa tune parameter strategi.
+**Goal:** Support more than one exchange, users can tune strategy parameters.
 
-- [ ] Bybit support (adapter LiquidationCollector untuk Bybit stream)
+- [ ] Bybit support (LiquidationCollector adapter for Bybit stream)
 - [ ] OKX support
-- [ ] Per-symbol confluence threshold config dari dashboard
-- [ ] Backtesting endpoint: jalankan strategi pada historical data
+- [ ] Per-symbol confluence threshold config from dashboard
+- [ ] Backtesting endpoint: run strategies on historical data
 - [ ] Strategy performance comparison per symbol
-- [ ] Alert rules customizable dari dashboard
-- [ ] Export trade history ke CSV
+- [ ] Customizable alert rules from dashboard
+- [ ] Export trade history to CSV
 
 ---
 
-## Phase 4 — Production Hardening
+## Phase 4 — Multi-User & Production Hardening
 
-**Target:** Siap dijalankan 24/7 di production VPS tanpa intervensi manual.
+**Goal:** Support multiple trader accounts, ready to run 24/7 on production VPS without manual intervention.
 
-- [ ] nginx reverse proxy dengan SSL (Let's Encrypt)
-- [ ] systemd unit files untuk semua service
+- [ ] Multi-user auth: per-user accounts, roles, and isolated bot instances
+- [ ] nginx reverse proxy with SSL (Let's Encrypt)
+- [ ] systemd unit files for all services
 - [ ] Redis AOF persistence + password
-- [ ] PostgreSQL backup otomatis (pg_dump ke object storage)
+- [ ] Automated PostgreSQL backup (pg_dump to object storage)
 - [ ] Log rotation (loguru + logrotate)
-- [ ] Uptime monitoring (external ping)
-- [ ] Graceful restart tanpa kehilangan posisi
-- [ ] Auto-recovery setelah VPS reboot
+- [ ] External uptime monitoring
+- [ ] Graceful restart without losing positions
+- [ ] Auto-recovery after VPS reboot
 
 ---
 
-## Out of Scope (untuk saat ini)
+## Out of Scope (for now)
 
-- Multi-user / multi-tenant (satu instance = satu user)
 - Copy trading / social trading
-- Spot trading (hanya futures/perpetual)
-- Mobile app (dashboard sudah responsive)
+- Spot trading (futures/perpetual only)
+- Mobile app (dashboard is already responsive)
 - Automated strategy discovery / optimization
 - On-chain / DeFi integration
 
@@ -105,10 +105,10 @@ Dashboard bisa dipantau dari browser. Posisi selalu terlindungi.
 
 ## Known Technical Debt
 
-| Item | Impact | Prioritas |
+| Item | Impact | Priority |
 |---|---|---|
-| LiquidationCollector Binance-only | Bybit/OKX tidak dapat data likuidasi | Phase 3 |
-| Single admin user (bcrypt hash di .env) | Tidak bisa multi-user | Out of scope |
-| Uvicorn workers=1 | Tidak bisa horizontal scale API | Acceptable untuk single-user |
-| Exponential backoff tidak ada di DataCollector | Steady retry saat exchange down | Disengaja — keep trying |
-| sr-bounce strategy butuh review | Strategy sr_bounce belum production-ready | Phase 2 |
+| LiquidationCollector Binance-only | Bybit/OKX cannot get liquidation data | Phase 3 |
+| Single admin user (bcrypt hash in .env) | Cannot support multi-user | Phase 4 |
+| Uvicorn workers=1 | Cannot horizontally scale API | Acceptable until multi-user |
+| No exponential backoff in DataCollector | Steady retry when exchange is down | Intentional — keep retrying |
+| sr-bounce strategy needs review | sr_bounce not yet production-ready | Phase 2 |

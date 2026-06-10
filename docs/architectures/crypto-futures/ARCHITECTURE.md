@@ -2,17 +2,17 @@
 
 ## Overview
 
-[PROJECT_NAME] adalah platform otomasi trading crypto futures berbasis web.
-Pengguna dapat menghubungkan akun exchange mereka, memilih strategi trading,
-dan memantau posisi serta performa secara real-time melalui dashboard web.
+[PROJECT_NAME] is a web-based crypto futures trading automation platform.
+Users can connect their exchange accounts, select trading strategies,
+and monitor positions and performance in real-time through a web dashboard.
 
-**Target pengguna:** Trader individu yang ingin mengotomasi strategi futures
-tanpa harus menulis kode sendiri.
+**Target users:** Traders who want to automate futures strategies
+without writing code themselves.
 
-**Prinsip desain:**
-- Self-hosted — data dan API key tidak meninggalkan server pengguna
-- Dashboard-first — semua operasi bisa dilakukan dari web, tidak perlu CLI
-- Fail-safe — posisi selalu terlindungi oleh SL/TP order di exchange
+**Design principles:**
+- Self-hosted — data and API keys never leave the user's server
+- Dashboard-first — all operations can be done from the web, no CLI needed
+- Fail-safe — positions are always protected by SL/TP orders at the exchange
 
 ---
 
@@ -71,42 +71,42 @@ tanpa harus menulis kode sendiri.
 
 ---
 
-## Komponen
+## Components
 
 ### Bot Engine
 - **Skill:** `crypto-futures-bot-engine`
-- **Runtime:** Single asyncio process, semua komponen sebagai coroutine
+- **Runtime:** Single asyncio process, all components as coroutines
 - **Entry:** `bot_engine/main.py`
-- **Key rule:** Satu `asyncio.Lock` per symbol di OrderExecutor — tidak ada duplicate order
-- **Config hot-reload:** Config dibaca dari Redis setiap candle, tidak perlu restart
+- **Key rule:** One `asyncio.Lock` per symbol in OrderExecutor — no duplicate orders
+- **Config hot-reload:** Config read from Redis every candle, no restart needed
 
-| Komponen | Fungsi |
+| Component | Function |
 |---|---|
-| DataCollector | Subscribe exchange WebSocket, publish closed candles + CVD ke Redis |
-| StrategyWorker | Evaluasi sinyal dari candle, publish ke stream.signals |
-| RiskManager | Gate 5 kondisi, sizing posisi, forward ke stream.orders |
-| OrderExecutor | Eksekusi order + SL/TP di exchange, publish ke stream.fills |
-| PositionTracker | Maintain state posisi di Redis, sync ke PostgreSQL |
+| DataCollector | Subscribe to exchange WebSocket, publish closed candles + CVD to Redis |
+| StrategyWorker | Evaluate signals from candles, publish to stream.signals |
+| RiskManager | 5 gate checks, position sizing, forward to stream.orders |
+| OrderExecutor | Execute orders + SL/TP at exchange, publish to stream.fills |
+| PositionTracker | Maintain position state in Redis, sync to PostgreSQL |
 | PositionManager | Trailing stop, break-even, partial TP, time exit (polling 10s) |
-| LiquidationCollector | Binance forceOrder WebSocket, rolling summary liquidation |
-| LLMSignalAgent | Refresh sinyal LLM setiap 4 menit, cache di Redis |
-| CommandListener | Consume stream.commands dari API, spawn/stop workers |
+| LiquidationCollector | Binance forceOrder WebSocket, rolling liquidation summary |
+| LLMSignalAgent | Refresh LLM signals every 4 minutes, cache in Redis |
+| CommandListener | Consume stream.commands from API, spawn/stop workers |
 
 ### API Server
 - **Skill:** `crypto-futures-bot-api`
-- **Runtime:** Uvicorn, `workers=1` (ConnectionManager in-process, tidak thread-safe)
-- **Auth:** Cookie HttpOnly + bcrypt, session di Redis (sliding TTL)
-- **WebSocket:** Single relay task subscribe Redis PubSub → broadcast ke semua browser tab
+- **Runtime:** Uvicorn, `workers=1` (ConnectionManager in-process, not thread-safe)
+- **Auth:** HttpOnly cookie + bcrypt, session in Redis (sliding TTL)
+- **WebSocket:** Single relay task subscribing Redis PubSub → broadcast to all browser tabs
 
 ### Dashboard
 - **Skill:** `crypto-futures-bot-dashboard`
 - **Stack:** Next.js App Router + Tailwind + shadcn/ui + lightweight-charts
-- **State:** Zustand store di-update via WebSocket events
-- **Data fetch:** React Query untuk REST (polling), Zustand untuk real-time WS
+- **State:** Zustand store updated via WebSocket events
+- **Data fetch:** React Query for REST (polling), Zustand for real-time WS
 
 ### Monitoring
 - **Skill:** `crypto-futures-bot-monitoring`
-- **Runtime:** Asyncio daemon terpisah dari bot engine
+- **Runtime:** Asyncio daemon separate from bot engine
 - **Alert channels:** Telegram (primary), email (optional fallback)
 - **Checks:** Heartbeat age, position SL coverage, stream lag, DB fallback file
 
@@ -119,7 +119,7 @@ tanpa harus menulis kode sendiri.
 docker-compose.yml
 ├── redis:latest-alpine      port 6379
 ├── postgres:latest-alpine   port 5432
-├── bot_engine               (volume mount untuk hot-reload)
+├── bot_engine               (volume mount for hot-reload)
 ├── api_server               port 8000
 └── monitoring
 ```
@@ -129,12 +129,12 @@ docker-compose.yml
 VPS (min 2 vCPU, 4GB RAM)
 ├── nginx (reverse proxy, SSL termination, WS upgrade)
 │   └── → api_server:8000
-├── bot_engine    (systemd unit atau docker)
-├── api_server    (systemd unit atau docker)
-├── monitoring    (systemd unit atau docker)
+├── bot_engine    (systemd unit or docker)
+├── api_server    (systemd unit or docker)
+├── monitoring    (systemd unit or docker)
 ├── redis         (requirepass, AOF persistence)
-├── postgres      (tidak expose port ke public)
-└── dashboard     (static export atau serve via Next.js)
+├── postgres      (not exposed to public)
+└── dashboard     (static export or served via Next.js)
 ```
 
 ### Redis key space
@@ -142,30 +142,30 @@ VPS (min 2 vCPU, 4GB RAM)
 ```
 state.bot.status          running | paused | stopped
 state.bot.workers         SET of active symbols
-state.position.{symbol}   JSON posisi aktif
-state.price.{symbol}      harga terkini (TTL 10s)
-config.worker.{symbol}    konfigurasi strategy per symbol
-stream.signals            Redis Stream: sinyal dari StrategyWorker
-stream.orders             Redis Stream: order dari RiskManager
-stream.fills              Redis Stream: fill dari OrderExecutor
-stream.commands           Redis Stream: command dari API
-bot.status                PubSub channel: status update
-position.updates          PubSub channel: update posisi real-time
+state.position.{symbol}   JSON active position
+state.price.{symbol}      current price (TTL 10s)
+config.worker.{symbol}    strategy config per symbol
+stream.signals            Redis Stream: signals from StrategyWorker
+stream.orders             Redis Stream: orders from RiskManager
+stream.fills              Redis Stream: fills from OrderExecutor
+stream.commands           Redis Stream: commands from API
+bot.status                PubSub channel: status updates
+position.updates          PubSub channel: real-time position updates
 ```
 
-Full schema di `crypto-futures-bot-architecture` skill.
+Full schema in `crypto-futures-bot-architecture` skill.
 
 ### PostgreSQL schema
 
 ```
-accounts      exchange accounts (api_key_ref ke env var, bukan key langsung)
+accounts      exchange accounts (api_key_ref to env var, not the key itself)
 symbols       active trading symbols per account
 trades        immutable trade log (entry/exit/pnl/fee)
-signals       sinyal yang di-act (untuk analisis strategi)
-daily_pnl     snapshot harian untuk equity curve
+signals       acted-upon signals (for strategy analysis)
+daily_pnl     daily snapshot for equity curve
 ```
 
-Full DDL di `crypto-futures-bot-db-schema` skill.
+Full DDL in `crypto-futures-bot-db-schema` skill.
 
 ---
 
@@ -192,7 +192,7 @@ stream.signals ──► RiskManager
 ```
 stream.signals
     │ 5 gate checks (status, position, circuit breaker, equity, drawdown)
-    │ hitung qty dari risk_pct dan ATR
+    │ calculate qty from risk_pct and ATR
     ▼
 stream.orders ──► OrderExecutor
     │ acquire Lock(symbol)
@@ -212,16 +212,16 @@ position.updates pub/sub ──► API Server ──► Dashboard WebSocket
 
 ```
 PositionManager (polling 10s)
-    │ baca state.position.{symbol}
-    │ evaluasi 5 rules (priority order):
-    │   1. Time exit (>24h tanpa capai 1R)
+    │ read state.position.{symbol}
+    │ evaluate 5 rules (priority order):
+    │   1. Time exit (>24h without reaching 1R)
     │   2. Trailing active (update peak, move SL)
     │   3. Trailing activate (profit >= 1.5R)
-    │   4. Break-even (profit >= 1R → SL ke entry)
+    │   4. Break-even (profit >= 1R → SL to entry)
     │   5. Partial TP (profit >= 2R → close 50%)
     ▼
-OrderExecutor.modify_sl() atau partial_close()
-    │ jika modify_sl gagal: CRITICAL alert + emergency_close
+OrderExecutor.modify_sl() or partial_close()
+    │ if modify_sl fails: CRITICAL alert + emergency_close
     ▼
 stream.fills ──► PositionTracker (update state)
 ```
@@ -231,39 +231,39 @@ stream.fills ──► PositionTracker (update state)
 ```
 Browser (WebSocket /ws)
     │ connect → auth cookie check
-    │ server push: initial state (bot status + semua posisi)
+    │ server push: initial state (bot status + all positions)
     ▼
 Redis PubSub (bot.status + position.updates)
-    │ setiap event: API Server relay task
+    │ on each event: API Server relay task
     ▼
 ConnectionManager.broadcast()
     ▼
-Semua tab browser terbuka (termasuk tab yang baru connect)
+All open browser tabs (including newly connected tabs)
 ```
 
 ---
 
-## Keputusan Desain
+## Design Decisions
 
-| Keputusan | Pilihan | Alasan |
+| Decision | Choice | Reason |
 |---|---|---|
-| Single asyncio process | vs multiprocess | Shared Lock per symbol, tanpa IPC overhead |
-| Redis hybrid (Stream + PubSub) | vs Kafka, RabbitMQ | Cukup untuk throughput ini, operasional lebih sederhana |
-| Uvicorn workers=1 | vs workers=N | ConnectionManager in-memory, tidak bisa di-share antar process |
-| SL/TP di exchange | vs bot-managed | Posisi terlindungi saat bot down |
-| API key via env var | vs database | Key tidak pernah di-persist ke disk DB |
-| LLM sebagai confluence | vs LLM sebagai trigger | LLM score 0-1 hanya menambah/mengurangi confidence, tidak pernah satu-satunya alasan entry |
-| Decimal untuk semua harga | vs float | Float JSON loses precision secara silent |
-| Config hot-reload via Redis | vs restart | Strategy bisa diganti tanpa downtime |
+| Single asyncio process | vs multiprocess | Shared Lock per symbol, no IPC overhead |
+| Redis hybrid (Stream + PubSub) | vs Kafka, RabbitMQ | Sufficient for this throughput, simpler to operate |
+| Uvicorn workers=1 | vs workers=N | ConnectionManager is in-memory, cannot be shared across processes |
+| SL/TP at exchange | vs bot-managed | Positions protected even when bot is down |
+| API key via env var | vs database | Key is never persisted to disk DB |
+| LLM as confluence | vs LLM as trigger | LLM score 0-1 only adds/reduces confidence, never the sole entry reason |
+| Decimal for all prices | vs float | Float JSON loses precision silently |
+| Config hot-reload via Redis | vs restart | Strategy can be changed without downtime |
 
 ---
 
-## Skills yang Digunakan
+## Skills Used
 
-| Komponen | Skill |
+| Component | Skill |
 |---|---|
 | Safety rules, exchange integration | `crypto-futures` |
-| Strategy implementations (6 strategi + price structure) | `crypto-futures-strategies` |
+| Strategy implementations (6 strategies + price structure) | `crypto-futures-strategies` |
 | Process topology, Redis schema, worker lifecycle | `crypto-futures-bot-architecture` |
 | Database schema, migrations, query patterns | `crypto-futures-bot-db-schema` |
 | Bot engine implementation | `crypto-futures-bot-engine` |
