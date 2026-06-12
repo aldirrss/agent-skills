@@ -130,36 +130,110 @@ With `wallet_usdc = 10000` (large wallet, MAX_POSITION_USDC kicks in):
 
 Stop loss and take profit prices are computed at **signal approval time** in RiskManager, not at fill time. This ensures the prices are based on the signal's observed price, not the (potentially worse) fill price.
 
+### Take Profit — 2× Modal Rule
+
+TP is fixed at **2× the position size** (100% gain). If you put in 50 USDC, the position closes when value reaches 100 USDC.
+
+```
+take_profit_pct = 1.0  (100% gain = price doubles = 2× modal)
+```
+
+This is a code constant, not a config value. Meme token trading requires asymmetric R/R — a 2× TP combined with a tiered SL keeps the expected value positive even with a 40–50% win rate.
+
+### Stop Loss — Liquidity Tier Rule
+
+SL percentage is derived from the token's liquidity depth. Thinner liquidity requires a wider SL for two reasons:
+1. Exit slippage is larger — the real exit price is worse than the stop price
+2. Thin pools are more volatile — premature stops fire more often on noise
+
+```python
+# Stop loss percentage per liquidity tier
+SL_TIERS: list[tuple[int, Decimal]] = [
+    (500_000, Decimal("0.15")),   # Deep pool   — tight SL achievable
+    ( 50_000, Decimal("0.20")),   # Healthy     — moderate buffer
+    ( 10_000, Decimal("0.30")),   # Thin        — wide buffer for noise
+    (      0, Decimal("0.40")),   # Very thin   — extreme volatility
+]
+```
+
+| Liquidity (USDC) | SL % | Rationale |
+|---|---|---|
+| >= 500,000 | 15% | Deep pool — exit slippage < 1%, tight SL safe |
+| >= 50,000 | 20% | Healthy — moderate slippage on exit |
+| >= 10,000 | 30% | Thin — high exit slippage + noisy price action |
+| < 10,000 | 40% | Very thin — position likely illiquid, wide buffer |
+
+### Implementation
+
 ```python
 # utils/position_sizing.py  (continued)
 
-def calculate_stop_loss_price(entry_price: Decimal, stop_loss_pct: Decimal) -> Decimal:
+# ── TP/SL constants ───────────────────────────────────────────────────────────
+
+TAKE_PROFIT_PCT = Decimal("1.0")   # 2× modal — price must double to hit TP
+
+SL_TIERS: list[tuple[int, Decimal]] = [
+    (500_000, Decimal("0.15")),
+    ( 50_000, Decimal("0.20")),
+    ( 10_000, Decimal("0.30")),
+    (      0, Decimal("0.40")),
+]
+
+
+def get_stop_loss_pct(liquidity_usdc: float) -> Decimal:
+    """
+    Derive stop loss percentage from liquidity depth.
+    Returns the first tier whose threshold is <= liquidity_usdc.
+    """
+    for threshold, pct in SL_TIERS:
+        if liquidity_usdc >= threshold:
+            return pct
+    return Decimal("0.40")   # fallback — never reached due to threshold=0 sentinel
+
+
+def calculate_stop_loss_price(entry_price: Decimal, liquidity_usdc: float) -> Decimal:
     """
     Price at which the position should be force-closed to limit downside.
+    Stop loss % is derived from liquidity tier, not a fixed config value.
 
     Args:
-        entry_price:    Signal price_usdc at approval time
-        stop_loss_pct:  From config.risk.stop_loss_pct (default: 0.15 = 15%)
+        entry_price:     Signal price_usdc at approval time
+        liquidity_usdc:  Token liquidity from stream.agent.approved / state.price.{mint}
 
-    Example: entry=0.00001233, sl_pct=0.15 → stop=0.00001048
+    Examples:
+        entry=0.00001233, liquidity=600_000  → sl_pct=0.15 → stop=0.00001048
+        entry=0.00001233, liquidity= 30_000  → sl_pct=0.20 → stop=0.00000986
+        entry=0.00001233, liquidity=  5_000  → sl_pct=0.40 → stop=0.00000740
     """
-    return (entry_price * (1 - stop_loss_pct)).quantize(
+    sl_pct = get_stop_loss_pct(liquidity_usdc)
+    return (entry_price * (1 - sl_pct)).quantize(
         Decimal("0.00000001"), rounding=ROUND_DOWN
     )
 
 
-def calculate_take_profit_price(entry_price: Decimal, take_profit_pct: Decimal) -> Decimal:
+def calculate_take_profit_price(entry_price: Decimal) -> Decimal:
     """
     Price at which the position should be closed for profit.
+    Fixed at 2× modal (TAKE_PROFIT_PCT = 1.0 = 100% gain).
 
     Args:
-        entry_price:      Signal price_usdc at approval time
-        take_profit_pct:  From config.risk.take_profit_pct (default: 0.50 = 50%)
+        entry_price:  Signal price_usdc at approval time
 
-    Example: entry=0.00001233, tp_pct=0.50 → target=0.00001850
+    Example: entry=0.00001233 → target=0.00002466
     """
-    return (entry_price * (1 + take_profit_pct)).quantize(Decimal("0.00000001"))
+    return (entry_price * (1 + TAKE_PROFIT_PCT)).quantize(Decimal("0.00000001"))
 ```
+
+### R/R Summary by Liquidity Tier
+
+| Liquidity | SL % | TP % | R/R Ratio | Min win rate to break even |
+|---|---|---|---|---|
+| >= 500,000 | 15% | 100% | 6.7 : 1 | ~13% |
+| >= 50,000 | 20% | 100% | 5.0 : 1 | ~17% |
+| >= 10,000 | 30% | 100% | 3.3 : 1 | ~23% |
+| < 10,000 | 40% | 100% | 2.5 : 1 | ~29% |
+
+Even at the worst tier (40% SL / 100% TP), a 30% win rate produces positive expected value.
 
 ## Position State Seeding
 
@@ -206,9 +280,6 @@ Full schema for `config.risk` Redis key (stored as JSON string):
 {
   "base_position_usdc":       50,
   "max_wallet_pct":           0.10,
-  "stop_loss_pct":            0.15,
-  "take_profit_pct":          0.50,
-  "trailing_stop":            false,
   "max_concurrent_positions": 5,
   "max_daily_loss_usdc":      200,
   "max_hold_time_seconds":    3600,
@@ -217,7 +288,13 @@ Full schema for `config.risk` Redis key (stored as JSON string):
 }
 ```
 
-Validated by pydantic at startup. The bot will not start with an invalid risk config. `max_concurrent_positions` and `max_daily_loss_usdc` are read from config — but `MAX_POSITION_USDC = 500` in code cannot be raised by config, only lowered implicitly by a small wallet balance.
+**Removed from config (now code constants):**
+- `stop_loss_pct` — replaced by `SL_TIERS` (liquidity-tiered, not configurable at runtime)
+- `take_profit_pct` — replaced by `TAKE_PROFIT_PCT = 1.0` (2× modal, not configurable at runtime)
+
+`MAX_POSITION_USDC = 500`, `TAKE_PROFIT_PCT = 1.0`, and `SL_TIERS` are code constants that cannot be overridden by config. This prevents accidental misconfiguration of the core R/R rules.
+
+Validated by pydantic at startup. The bot will not start with an invalid risk config.
 
 ## Updating config.risk at Runtime
 
@@ -225,7 +302,7 @@ RiskManager reads `config.risk` on every signal — hot reload is free.
 
 ```bash
 # Update base position size to 75 USDC without restarting the bot
-redis-cli SET config.risk '{"base_position_usdc": 75, "max_wallet_pct": 0.10, "stop_loss_pct": 0.15, "take_profit_pct": 0.50, "trailing_stop": false, "max_concurrent_positions": 5, "max_daily_loss_usdc": 200, "max_hold_time_seconds": 3600, "min_liquidity_usdc": 30000, "min_viable_position_usdc": 5}'
+redis-cli SET config.risk '{"base_position_usdc": 75, "max_wallet_pct": 0.10, "max_concurrent_positions": 5, "max_daily_loss_usdc": 200, "max_hold_time_seconds": 3600, "min_liquidity_usdc": 30000, "min_viable_position_usdc": 5}'
 ```
 
 Changes take effect on the next signal processed — no restart required.

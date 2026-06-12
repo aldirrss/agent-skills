@@ -1,31 +1,40 @@
-# Integration
+# Integration — Wiring OrchestratorAgent + SignalAggregator into the Engine
 
-How to wire `AgentConfirmer` into the engine. The component is fully optional —
-when `AGENT_ENABLED=false` (default) the pipeline is unchanged.
-
----
-
-## Stream Routing Logic
-
-The key insight: RiskManager always reads `stream.signals`. Only the *publisher* changes.
-
-```
-AGENT_ENABLED=false (default):
-  Strategy tasks → xadd("stream.signals", ...) → RiskManager
-
-AGENT_ENABLED=true:
-  Strategy tasks → xadd("stream.signals.raw", ...) → AgentConfirmer
-                                                          ↓
-                                                   xadd("stream.signals", ...)
-                                                          ↓
-                                                    RiskManager
-```
-
-RiskManager's consumer group (`risk-group` on `stream.signals`) requires zero changes.
+This document covers how to add `SignalAggregator` and `OrchestratorAgent` to `main.py`
+and the minimal changes required in adjacent components.
 
 ---
 
-## Settings Class Addition
+## Full Pipeline (after integration)
+
+```
+Strategies → XADD stream.signals
+                    │
+                    ▼
+          SignalAggregator          ← GATE 1 (composite score ranking, top-15 batch)
+                    │
+                    ▼  XADD stream.agent.eligible  {batch_id, mints=[...]}
+                    │
+                    ▼
+          OrchestratorAgent         ← GATE 2 (LLM scoring, final_score >= 80)
+                    │
+                    ▼  XADD stream.agent.approved  {mint, final_score, reasoning, ...}
+                    │
+                    ▼
+            RiskManager             ← reads stream.agent.approved (was: stream.signals)
+                    │
+                    ▼  XADD stream.swaps
+                    │
+                    ▼
+              Execution
+```
+
+The two new components sit between Strategy and RiskManager as always-on stages —
+no optional flag, no bypass mode.
+
+---
+
+## Settings Class Changes
 
 ```python
 # solana_bot/config.py
@@ -37,14 +46,23 @@ from pydantic import Field
 class Settings(BaseSettings):
     # ... existing fields ...
 
-    # Agent layer (optional)
-    agent_enabled:    bool  = Field(default=False, env="AGENT_ENABLED")
-    anthropic_api_key: str  = Field(default="",    env="ANTHROPIC_API_KEY")
-    agent_model:       str  = Field(
-        default="claude-haiku-4-5",
-        env="AGENT_MODEL",
-    )
-    agent_max_tokens:  int  = Field(default=100,   env="AGENT_MAX_TOKENS")
+    # --- Agent layer: multi-provider key pools ---
+    # Groq keys — used by market, safety, risk agents (free tier)
+    groq_api_keys: str = Field(default="", env="GROQ_API_KEYS")
+
+    # Gemini keys — used by social agent (free tier)
+    gemini_api_keys: str = Field(default="", env="GEMINI_API_KEYS")
+
+    # Optional alternative providers
+    openrouter_api_keys: str = Field(default="", env="OPENROUTER_API_KEYS")
+    anthropic_api_keys:  str = Field(default="", env="ANTHROPIC_API_KEYS")
+    openai_api_keys:     str = Field(default="", env="OPENAI_API_KEYS")
+
+    # Optional model overrides per agent (defaults in KeyPoolManager)
+    agent_market_model: str = Field(default="", env="AGENT_MARKET_MODEL")
+    agent_safety_model: str = Field(default="", env="AGENT_SAFETY_MODEL")
+    agent_risk_model:   str = Field(default="", env="AGENT_RISK_MODEL")
+    agent_social_model: str = Field(default="", env="AGENT_SOCIAL_MODEL")
 
     class Config:
         env_file = ".env"
@@ -55,38 +73,38 @@ class Settings(BaseSettings):
 
 ## main.py Changes
 
-Three additions to `main.py`:
+Three additions:
 
-1. Import `AgentConfirmer`
-2. Conditionally create the `stream.signals.raw` consumer group
-3. Conditionally spawn the `AgentConfirmer` task
+1. Import `SignalAggregator` and `OrchestratorAgent`
+2. Register their consumer groups in `ensure_consumer_groups`
+3. Spawn both tasks unconditionally
 
 ```python
 # solana_bot/main.py  (relevant sections only)
 
 import asyncio
-import signal as os_signal
 from loguru import logger
 
 from solana_bot.config import Settings
-from solana_bot.components.agent.confirmer import AgentConfirmer
+from solana_bot.components.signal_aggregator import SignalAggregator
+from solana_bot.components.orchestrator_agent import OrchestratorAgent
 # ... other imports ...
 
 
 async def ensure_consumer_groups(redis, settings: Settings) -> None:
     streams = [
-        ("stream.signals",      "risk-group"),
-        ("stream.swaps",        "execution-group"),
-        ("stream.fills",        "tracker-group"),
-        ("stream.commands",     "command-group"),
+        # --- existing ---
+        ("stream.signals",          "aggregator-group"),    # was: risk-group — now SignalAggregator reads this
+        ("stream.swaps",            "execution-group"),
+        ("stream.fills",            "tracker-group"),
+        ("stream.commands",         "command-group"),
+        # --- new ---
+        ("stream.agent.eligible",   "orchestrator-group"),  # OrchestratorAgent reads this
+        ("stream.agent.approved",   "risk-group"),          # RiskManager reads this
     ]
-    # Add agent stream only when agent is enabled
-    if settings.agent_enabled:
-        streams.append(("stream.signals.raw", "agent-group"))
-
     for stream_name, group in streams:
         try:
-            await redis.xgroup_create(stream_name, group, id="0", mkstream=True)
+            await redis.xgroup_create(stream_name, group, id="$", mkstream=True)
         except Exception as exc:
             if "BUSYGROUP" not in str(exc):
                 raise
@@ -98,197 +116,153 @@ async def main() -> None:
 
     await ensure_consumer_groups(redis, settings)
 
+    # KeyPoolManager validates all keys at startup — raises ValueError if < 3 keys per agent
+    # This happens inside OrchestratorAgent.__init__ → no separate validation needed here.
+
     tasks: list[asyncio.Task] = []
 
     # --- Scanner tasks (unchanged) ---
-    # tasks += [asyncio.create_task(dexscreener_poller(redis, settings), name="scanner.dexscreener"), ...]
+    # tasks += [asyncio.create_task(dexscreener_poller(...), name="scanner.dexscreener"), ...]
 
-    # --- Strategy tasks ---
-    # Strategy publishes to stream.signals.raw when agent enabled,
-    # or directly to stream.signals when disabled.
-    signal_stream = "stream.signals.raw" if settings.agent_enabled else "stream.signals"
-
+    # --- Strategy tasks (unchanged — still publish to stream.signals) ---
     tasks += [
-        asyncio.create_task(
-            kol_copy_trade(redis, settings, signal_stream=signal_stream),
-            name="strategy.kol_copy",
-        ),
-        asyncio.create_task(
-            new_launch_snipe(redis, settings, signal_stream=signal_stream),
-            name="strategy.new_launch",
-        ),
+        asyncio.create_task(kol_copy_trade(redis, settings),    name="strategy.kol_copy"),
+        asyncio.create_task(new_launch_snipe(redis, settings),  name="strategy.new_launch"),
         # ... other strategy tasks ...
     ]
 
-    # --- AgentConfirmer (optional) ---
-    if settings.agent_enabled:
-        confirmer = AgentConfirmer(redis, settings)
-        tasks.append(
-            asyncio.create_task(confirmer.run(), name="agent.confirmer")
-        )
-        logger.info("AgentConfirmer enabled — model={}", settings.agent_model)
-    else:
-        logger.info("AgentConfirmer disabled (AGENT_ENABLED=false)")
+    # --- SignalAggregator (GATE 1) ---
+    aggregator = SignalAggregator(redis, settings)
+    tasks.append(asyncio.create_task(aggregator.run(), name="signal_aggregator"))
+    logger.info("SignalAggregator started")
 
-    # --- RiskManager, Execution, etc. (unchanged) ---
+    # --- OrchestratorAgent (GATE 2) — raises ValueError if API keys are missing ---
+    orchestrator = OrchestratorAgent(redis, settings)
+    tasks.append(asyncio.create_task(orchestrator.run(), name="orchestrator_agent"))
+    logger.info("OrchestratorAgent started")
+
+    # --- RiskManager now reads stream.agent.approved ---
     # tasks += [asyncio.create_task(risk_manager.run(), name="risk_manager"), ...]
+
+    # --- Execution, PositionTracker, etc. (unchanged) ---
 
     await asyncio.gather(*tasks)
 ```
 
 ---
 
-## Strategy Task Signal Stream Parameter
+## RiskManager Stream Change
 
-Each Strategy task needs a `signal_stream` parameter so it knows where to publish.
-This is a minimal, non-breaking change to the existing Strategy interface.
+RiskManager must switch its input stream from `stream.signals` to `stream.agent.approved`.
+The consumer group name stays `risk-group` — only the stream name changes.
 
 ```python
-# solana_bot/components/strategy/confluence.py
+# solana_bot/components/risk_manager.py  (change two constants)
 
-async def publish_buy_signal(
-    redis,
-    signal: dict,
-    signal_stream: str = "stream.signals",   # default unchanged behaviour
-) -> None:
-    """
-    Publish a BUY signal to the appropriate stream.
-    When AgentConfirmer is active, signal_stream = "stream.signals.raw".
-    """
-    await redis.xadd(signal_stream, signal)
+STREAM_IN = "stream.agent.approved"   # was: "stream.signals"
+GROUP      = "risk-group"
+CONSUMER   = "risk-manager-1"
 ```
 
-Each strategy task passes `signal_stream` down to `publish_buy_signal`. Existing code
-that omits the parameter continues working unchanged (publishes to `stream.signals`).
+The payload fields on `stream.agent.approved` include `mint`, `final_score`, agent scores,
+and `reasoning` (JSON dict). The `side` field is always BUY — `stream.agent.approved`
+only carries approved buy candidates.
+
+For SELL signals, strategies publish directly to `stream.signals` and SignalAggregator
+passes SELLs through immediately (no scoring, no batch):
+
+```
+strategy.publish_sell_signal → XADD stream.signals {action=SELL, ...}
+    → SignalAggregator passthrough
+    → XADD stream.agent.eligible {mints=[], sell_passthrough: {mint, ...}}   [OR]
+    → XADD stream.agent.approved directly
+```
+
+> **Implementation note:** The simplest approach is to have SignalAggregator write SELL
+> signals directly to `stream.agent.approved` without going through OrchestratorAgent.
+> This avoids adding SELL handling to the scoring pipeline entirely.
 
 ---
 
-## Signal Schema Addition
+## Consumer Group Migration
 
-BUY signals on `stream.signals.raw` use the same schema as `stream.signals` with
-two additional optional fields that `AgentConfirmer` reads for prompt building:
+If upgrading an existing running bot:
 
-```python
-{
-    # --- Existing fields (unchanged) ---
-    "mint":            "7xKp3q...",
-    "symbol":          "PEPEAI",
-    "side":            "BUY",
-    "strategy":        "kol_copy_trade",
-    "confidence":      "0.72",          # float str [0, 1]
-    "entry_usdc":      "0.000042",
-    "liquidity_usdc":  "285000",
-    "ts":              "1718000000.0",
+```bash
+# 1. Create new groups before starting new code
+redis-cli XGROUP CREATE stream.signals        aggregator-group  $ MKSTREAM
+redis-cli XGROUP CREATE stream.agent.eligible orchestrator-group $ MKSTREAM
+redis-cli XGROUP CREATE stream.agent.approved risk-group         $ MKSTREAM
 
-    # --- New optional fields for agent scoring ---
-    "sources":         "kol_wallet,twitter_spike",   # comma-sep signal source names
-    "kol_count":       "3",                           # number of KOL wallets that bought
-    "price_change_1h": "42.3",                        # % price change last hour (float str)
-    "social_sources":  "2 KOL tweets, 1 CT thread",  # human-readable social summary
-
-    # --- Added by AgentConfirmer on output to stream.signals ---
-    # "llm_scored":   "true"
-    # "llm_score":    "0.82"
-    # (confidence is updated in place)
-}
+# 2. Delete old risk-group on stream.signals (no longer needed)
+redis-cli XGROUP DESTROY stream.signals risk-group
 ```
-
-If `sources`, `kol_count`, `price_change_1h`, `social_sources` are absent, the prompt
-degrades gracefully to `n/a` values — AgentConfirmer never fails due to missing fields.
 
 ---
 
 ## Shutdown Order
 
-Add AgentConfirmer between Strategy and RiskManager in the shutdown sequence.
-Order: Scanners → Strategy → **AgentConfirmer** → RiskManager → Execution.
+```
+Scanners → Strategy → SignalAggregator → OrchestratorAgent → RiskManager → Execution
+```
 
 ```python
-async def shutdown(tasks: list[asyncio.Task], settings: Settings) -> None:
-    # 1. Cancel scanners
-    for t in tasks:
-        if t.get_name().startswith("scanner."):
+async def shutdown(tasks: list[asyncio.Task]) -> None:
+    shutdown_order = [
+        "scanner.",
+        "strategy.",
+        "signal_aggregator",
+        "orchestrator_agent",
+        "risk_manager",
+        "execution",
+    ]
+    for prefix in shutdown_order:
+        targets = [t for t in tasks if t.get_name().startswith(prefix)]
+        for t in targets:
             t.cancel()
-    await asyncio.gather(*[t for t in tasks if t.get_name().startswith("scanner.")],
-                         return_exceptions=True)
-
-    # 2. Cancel strategy tasks
-    for t in tasks:
-        if t.get_name().startswith("strategy."):
-            t.cancel()
-    await asyncio.gather(*[t for t in tasks if t.get_name().startswith("strategy.")],
-                         return_exceptions=True)
-
-    # 3. Cancel AgentConfirmer (allow up to 5s to finish current LLM call)
-    for t in tasks:
-        if t.get_name() == "agent.confirmer":
-            t.cancel()
-            try:
-                await asyncio.wait_for(asyncio.shield(t), timeout=5.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
-
-    # 4. RiskManager, Execution, etc.
-    # ...
+        await asyncio.gather(*targets, return_exceptions=True)
 ```
+
+SignalAggregator and OrchestratorAgent use Redis consumer groups — cancelling them
+mid-batch is safe because unacked messages are redelivered on next startup.
 
 ---
 
-## Latency Budget
-
-| Strategy | Timeout | Why |
-|---|---|---|
-| `new_launch_snipe` | **2s** | Token launches expire in seconds — miss window = no trade |
-| `kol_copy_trade` | 5s | KOL trades move fast but not sub-second |
-| `momentum_spike` | 5s | Momentum windows are a few minutes |
-| `graduation_trade` | 8s | Graduation events give a wider window |
-| `smart_money_confluence` | 8s | Slower, patient strategy |
-| `social_alpha` | 8s | Slowest, highest bar |
-
-`claude-haiku-4-5` typical latency is 300–800ms for a 100-token response. Even with
-network overhead, the 2s budget for `new_launch_snipe` is tight. If latency exceeds
-2s more than ~5% of the time, consider:
-
-1. Pre-warming the prompt cache by sending a dummy scoring request at startup
-2. Reducing `new_launch_snipe` timeout to `AGENT_SKIP` mode (pass all through)
-3. Falling back to a local heuristic scorer for time-critical strategies
-
-```python
-# Optional: skip LLM for strategies where latency risk > benefit
-AGENT_SKIP_STRATEGIES: set[str] = set(
-    os.getenv("AGENT_SKIP_STRATEGIES", "").split(",")
-)
-# Example: AGENT_SKIP_STRATEGIES=new_launch_snipe
-```
-
----
-
-## .env Example
+## .env (wajib)
 
 ```bash
-# Agent layer
-AGENT_ENABLED=true
-ANTHROPIC_API_KEY=sk-ant-api03-...
-AGENT_MODEL=claude-haiku-4-5
-AGENT_MAX_TOKENS=100
+# Groq — for market, safety, risk agents (3–5 keys required)
+GROQ_API_KEYS=gsk_xxxx1,gsk_xxxx2,gsk_xxxx3
 
-# Optional: skip agent for time-sensitive strategies
-AGENT_SKIP_STRATEGIES=new_launch_snipe
+# Gemini — for social agent (3–5 keys required)
+GEMINI_API_KEYS=AIzaSy_xxxx1,AIzaSy_xxxx2,AIzaSy_xxxx3
+
+# Optional: override model per agent
+# AGENT_MARKET_MODEL=groq/llama-3.1-8b-instant
+# AGENT_SAFETY_MODEL=groq/llama-3.1-8b-instant
+# AGENT_RISK_MODEL=groq/llama-3.1-8b-instant
+# AGENT_SOCIAL_MODEL=gemini/gemini-2.0-flash
 ```
+
+Engine fails at startup with a clear error if `GROQ_API_KEYS` or `GEMINI_API_KEYS`
+has fewer than 3 keys — see `references/key-pool.md` for the full error format.
 
 ---
 
 ## Observability
 
-`AgentConfirmer` emits structured Loguru logs at every decision point:
+`SignalAggregator` and `OrchestratorAgent` emit structured Loguru logs:
 
 ```
-INFO  agent_confirmer | LLM scored mint=7xKp3q... strategy=kol_copy_trade orig=0.720 llm=0.820 final=0.750
-WARN  agent_confirmer | LLM timeout after 2.0s for mint=3aZr9x...
-WARN  agent_confirmer | LLM error for mint=8bNc1y...: anthropic.RateLimitError
-DEBUG agent_confirmer | Cache hit llm.score.7xKp3q...
-DEBUG agent_confirmer | SELL passthrough mint=9dPm4z...
+INFO  signal_aggregator   | dispatching batch=abc123 — 12 tokens (gate1_pass=12/18)
+INFO  orchestrator_agent  | approved 7xKp3q... — score=84.5
+INFO  orchestrator_agent  | skip 3aZr9x... — score=61.0 market=72 safety=45 risk=68 social=55
+WARN  orchestrator_agent  | safety batch timed out (20s)
+INFO  orchestrator_agent  | batch abc123 done — 3/12 approved
 ```
 
-Add a Grafana panel counting `llm_scored=true` signals vs total BUY signals to track
-the agent hit rate. A hit rate below 50% may indicate the Anthropic API is throttling.
+Key metrics to track in Grafana:
+- `gate1_pass_rate` = tokens dispatched / total signals received by SignalAggregator
+- `gate2_pass_rate` = tokens approved / tokens dispatched by OrchestratorAgent
+- `agent_timeout_rate` = timeouts per agent per batch (watch for Groq/Gemini rate limits)
+- `llm_cache_hit_rate` = cached scores / total scores (`llm.score.{mint}` TTL 300s)

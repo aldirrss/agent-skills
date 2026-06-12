@@ -136,7 +136,7 @@ async def safety_gate(redis, mint: str, risk_cfg: dict) -> tuple[bool, str]:
         approved, reason = await safety_gate(redis, mint, risk_cfg)
         if not approved:
             log.debug(f"BUY rejected: {reason}")
-            await redis.xack("stream.signals", "risk-group", msg_id)
+            await redis.xack("stream.agent.approved", "risk-group", msg_id)
             return
     """
     checks = [
@@ -165,7 +165,7 @@ async def _handle_buy(self, msg_id, data, mint, strategy):
     approved, reason = await safety_gate(self.redis, mint, risk_cfg)
     if not approved:
         self.log.debug(f"BUY rejected [{data.get('symbol', mint[:8])}]: {reason}")
-        await self.redis.xack("stream.signals", self.GROUP, msg_id)
+        await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
         return
 
     # ... proceed to position sizing and publish swap

@@ -1,6 +1,6 @@
 ---
 name: web3-solana-engine
-description: Python bot engine implementation for Solana DEX trading — asyncio process skeleton, component wiring, config/logging setup, and production patterns. Use this whenever the user is building, debugging, or extending the core bot engine process — entry point, Scanner tasks, Strategy tasks, RiskManager, Execution, PositionTracker, DBWriter, CommandListener, health heartbeat, config loading, keypair loading, or Loguru logging. Trigger even when the user mentions one specific component (e.g. "how to wire Scanner to Strategy", "how to restart a crashed Strategy task", "how to load wallet keypair safely", "bot keeps re-entering a position", "how to handle Helius webhook alongside other tasks"). All code here assumes web3-solana-architecture (topology, Redis schema) and web3-solana (safety rules, swap execution) are loaded.
+description: Python bot engine implementation for Solana DEX trading — asyncio process skeleton, component wiring, config/logging setup, and production patterns. Use this whenever the user is building, debugging, or extending the core bot engine process — entry point, Scanner tasks, Strategy tasks, SignalAggregator, OrchestratorAgent, RiskManager, Execution, PositionTracker, DBWriter, CommandListener, health heartbeat, config loading, keypair loading, or Loguru logging. Trigger even when the user mentions one specific component (e.g. "how to wire Scanner to Strategy", "how to restart a crashed Strategy task", "how to load wallet keypair safely", "bot keeps re-entering a position", "how to handle Helius webhook alongside other tasks"). All code here assumes web3-solana-architecture (topology, Redis schema) and web3-solana (safety rules, swap execution) are loaded.
 requires:
   - web3-solana
   - web3-solana-architecture
@@ -48,6 +48,8 @@ Settings + Loguru (loaded first, injected everywhere)
     │  - position_monitor                   │
     └───────────────────────────────────────┘
          │ stream.signals
+    SignalAggregator (GATE 1) ──stream.agent.eligible──▶ OrchestratorAgent (GATE 2)
+                                                              │ stream.agent.approved
     RiskManager ──stream.swaps──▶ Execution ──stream.fills──▶ PositionTracker
                                                               DBWriter
     CommandListener ──stream.commands──▶ (controls above)
@@ -64,6 +66,7 @@ Settings + Loguru (loaded first, injected everywhere)
 6. **No bare `except Exception: pass`** — every exception is logged. Execution-path exceptions trigger emergency handling.
 7. **Shutdown order matters** — stop Scanners first (no new signals), then Strategy, then RiskManager, then Execution last (may hold a lock).
 8. **Config hot-reload** — Strategy and Risk components read from Redis keys on every evaluation cycle, not cached in memory.
+9. **KeyPoolManager validates at startup** — `OrchestratorAgent.__init__` calls `KeyPoolManager(settings)` which immediately raises `ValueError` if any agent's provider has fewer than 3 API keys. Engine will not start. See `web3-solana-agent` → `references/key-pool.md`.
 
 ## Startup Sequence
 
@@ -81,7 +84,7 @@ Settings + Loguru (loaded first, injected everywhere)
 11. Set state.bot.status = "stopped"
 12. Spawn CommandListener + Monitor (always running)
 13. Wait for START command
-14. On START: spawn all Scanner + Strategy + RiskManager + Execution + PositionTracker + DBWriter
+14. On START: spawn all Scanner + Strategy + SignalAggregator + OrchestratorAgent + RiskManager + Execution + PositionTracker + DBWriter
 15. Set state.bot.status = "running"
 ```
 
@@ -92,14 +95,16 @@ Settings + Loguru (loaded first, injected everywhere)
 2. SET state.bot.status = "paused"
 3. Cancel Scanner tasks
 4. Cancel Strategy tasks (after draining in-flight evaluations, max 5s)
-5. Wait for RiskManager to finish current signal (max 10s)
+5. Wait for SignalAggregator to finish current batch (max 5s)
+6. Wait for OrchestratorAgent to finish current LLM batch (max 60s)
+7. Wait for RiskManager to finish current signal (max 10s)
 6. Wait for Execution to finish current swap (max 60s)
-7. Cancel RiskManager, PositionTracker, DBWriter
-8. Flush Loguru buffer
-9. Close aiohttp.ClientSession
-10. Close Redis pool
-11. Close PostgreSQL pool
-12. Exit 0
+8. Cancel RiskManager, PositionTracker, DBWriter
+9. Flush Loguru buffer
+10. Close aiohttp.ClientSession
+11. Close Redis pool
+12. Close PostgreSQL pool
+13. Exit 0
 ```
 
 Positions remain **open** on shutdown — protected by stop_loss stored in position state. Emergency close is via `EMERGENCY_STOP` command.
@@ -132,6 +137,16 @@ solana_bot/
 │   │   ├── smart_money.py
 │   │   ├── social_alpha.py
 │   │   └── position_monitor.py
+│   ├── signal_aggregator.py
+│   ├── orchestrator_agent.py
+│   ├── key_pool.py
+│   ├── agents/
+│   │   ├── types.py             ← AgentScore, TokenContext
+│   │   ├── base.py              ← BaseAgent (litellm)
+│   │   ├── market.py
+│   │   ├── safety.py
+│   │   ├── risk.py
+│   │   └── social.py
 │   ├── risk_manager.py
 │   ├── execution.py
 │   ├── position_tracker.py

@@ -37,10 +37,14 @@ pipeline_tasks = [
 
 ```
 stream.signals
-    └──► RiskManager (group: risk-group)
-             └──► stream.swaps
-                      └──► Execution (group: exec-group)
-                               └──► stream.fills
+    └──► SignalAggregator (group: aggregator-group)
+             └──► stream.agent.eligible
+                      └──► OrchestratorAgent (group: orchestrator-group)
+                               └──► stream.agent.approved
+                                        └──► RiskManager (group: risk-group)
+                                                 └──► stream.swaps
+                                                          └──► Execution (group: exec-group)
+                                                                   └──► stream.fills
 ```
 
 ## Shutdown Order

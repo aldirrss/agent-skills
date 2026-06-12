@@ -1,6 +1,6 @@
 # RiskManager
 
-Full implementation of the RiskManager component. Reads `stream.signals` via XREADGROUP, validates all safety rules, sizes positions, derives slippage, and publishes approved swap requests to `stream.swaps`.
+Full implementation of the RiskManager component. Reads `stream.agent.approved` (BUY) and `stream.signals` (SELL passthrough) via XREADGROUP, validates all safety rules, sizes positions, derives slippage, and publishes approved swap requests to `stream.swaps`.
 
 ## Class: `RiskManager`
 
@@ -51,7 +51,7 @@ class RiskManager:
                 messages = await self.redis.xreadgroup(
                     self.GROUP,
                     self.CONSUMER,
-                    {"stream.signals": ">"},
+                    {"stream.agent.approved": ">"},
                     count=1,
                     block=1000,
                 )
@@ -72,7 +72,7 @@ class RiskManager:
         """Create consumer group if it doesn't exist (idempotent)."""
         try:
             await self.redis.xgroup_create(
-                "stream.signals", self.GROUP, id="0", mkstream=True
+                "stream.agent.approved", self.GROUP, id="0", mkstream=True
             )
             self.log.debug(f"Consumer group '{self.GROUP}' created")
         except Exception as exc:
@@ -95,11 +95,11 @@ class RiskManager:
                 await self._handle_sell(msg_id, data, mint)
             else:
                 self.log.warning(f"Unknown action '{action}' — discarding msg_id={msg_id}")
-                await self.redis.xack("stream.signals", self.GROUP, msg_id)
+                await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
         except Exception as exc:
             self.log.error(f"Signal processing error: {exc} | msg_id={msg_id} mint={mint[:8]}...")
             # Always ACK to avoid infinite retry loop on a permanently bad message
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
 
     # ── BUY handler ───────────────────────────────────────────────────────────
 
@@ -118,7 +118,7 @@ class RiskManager:
         # 1. No existing position for this mint
         if await self.redis.exists(f"state.position.{mint}"):
             self.log.debug(f"BUY rejected — position exists: {symbol}")
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # 2. Max concurrent positions
@@ -127,7 +127,7 @@ class RiskManager:
             self.log.debug(
                 f"BUY rejected — max concurrent positions ({MAX_CONCURRENT_POSITIONS}) reached"
             )
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # 3. Daily loss circuit breaker
@@ -137,14 +137,14 @@ class RiskManager:
             self.log.warning(
                 f"BUY rejected — circuit breaker active: daily_pnl={daily_pnl} USDC"
             )
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # 4. Bot must be running
         bot_status = await self.redis.get("state.bot.status")
         if bot_status != "running":
             self.log.debug(f"BUY rejected — bot status is '{bot_status}'")
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # 5. Wallet USDC balance check
@@ -152,7 +152,7 @@ class RiskManager:
         min_viable  = Decimal(str(risk_cfg.get("min_viable_position_usdc", 5)))
         if wallet_usdc < min_viable:
             self.log.warning(f"BUY rejected — insufficient USDC balance: {wallet_usdc}")
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # 6. SOL reserve check (fees)
@@ -161,7 +161,7 @@ class RiskManager:
             self.log.warning(
                 f"BUY rejected — SOL balance {sol_balance} below reserve {MIN_SOL_RESERVE}"
             )
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # ── Position sizing ───────────────────────────────────────────────────
@@ -171,7 +171,7 @@ class RiskManager:
 
         if size_usdc <= 0:
             self.log.debug(f"BUY rejected — calculated size is zero: {symbol}")
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         # ── Slippage ──────────────────────────────────────────────────────────
@@ -180,12 +180,12 @@ class RiskManager:
         slippage_bps = _get_slippage(liquidity)
 
         # ── Stop loss / take profit prices ────────────────────────────────────
+        # SL: liquidity-tiered code constant (SL_TIERS)
+        # TP: 2× modal code constant (TAKE_PROFIT_PCT = 1.0)
 
-        entry_price     = Decimal(str(data.get("price_usdc", "0")))
-        sl_pct          = Decimal(str(risk_cfg.get("stop_loss_pct", 0.15)))
-        tp_pct          = Decimal(str(risk_cfg.get("take_profit_pct", 0.50)))
-        stop_loss_price = (entry_price * (1 - sl_pct)).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
-        take_profit_price = (entry_price * (1 + tp_pct)).quantize(Decimal("0.00000001"))
+        entry_price       = Decimal(str(data.get("price_usdc", "0")))
+        stop_loss_price   = calculate_stop_loss_price(entry_price, liquidity)
+        take_profit_price = calculate_take_profit_price(entry_price)
 
         # ── Publish to stream.swaps ───────────────────────────────────────────
 
@@ -204,7 +204,7 @@ class RiskManager:
             "ts":                 str(int(time.time() * 1000)),
         }
         await self.redis.xadd("stream.swaps", swap)
-        await self.redis.xack("stream.signals", self.GROUP, msg_id)
+        await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
 
         self.log.info(
             f"BUY approved: {symbol} | size={size_usdc} USDC | "
@@ -219,7 +219,7 @@ class RiskManager:
         pos_raw = await self.redis.get(f"state.position.{mint}")
         if not pos_raw:
             self.log.debug(f"SELL rejected — no open position for mint={mint[:8]}...")
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         pos    = json.loads(pos_raw)
@@ -233,7 +233,7 @@ class RiskManager:
         amount_tokens = pos.get("amount_tokens", "0")
         if amount_tokens == "0":
             self.log.error(f"SELL rejected — amount_tokens is 0 for {symbol}")
-            await self.redis.xack("stream.signals", self.GROUP, msg_id)
+            await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
             return
 
         swap: dict[str, str] = {
@@ -248,7 +248,7 @@ class RiskManager:
             "ts":            str(int(time.time() * 1000)),
         }
         await self.redis.xadd("stream.swaps", swap)
-        await self.redis.xack("stream.signals", self.GROUP, msg_id)
+        await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
 
         self.log.info(
             f"SELL approved: {symbol} | tokens={amount_tokens} | "
@@ -311,7 +311,7 @@ Called from `main.py` `_ensure_consumer_groups()` at startup — idempotent, saf
 async def ensure_risk_consumer_group(redis) -> None:
     try:
         await redis.xgroup_create(
-            "stream.signals",
+            "stream.agent.approved",
             "risk-group",
             id="0",       # start from beginning to catch any pending messages
             mkstream=True,
@@ -340,7 +340,7 @@ RiskManager is the sole publisher of `stream.swaps`. Fields written:
 | Field | Type | Present on | Description |
 |---|---|---|---|
 | `swap_id` | str | BUY + SELL | `swp_` + 8-char UUID hex |
-| `signal_id` | str | BUY + SELL | Passthrough from `stream.signals` |
+| `batch_id` | str | BUY only | Passthrough from `stream.agent.approved` (OrchestratorAgent batch) |
 | `mint` | str | BUY + SELL | Token mint address |
 | `symbol` | str | BUY + SELL | Human-readable ticker |
 | `side` | str | BUY + SELL | `"BUY"` or `"SELL"` |

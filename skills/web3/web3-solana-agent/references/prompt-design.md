@@ -1,267 +1,144 @@
 # Prompt Design
 
-LLM prompt patterns for token signal scoring. All prompts are designed for
-`claude-haiku-4-5` — the fastest and cheapest Claude model, suitable for
-low-latency scoring in a hot trading pipeline.
+Design principles and patterns for the 4 sub-agent prompts. Full prompt implementations
+are in `references/sub-agents.md`. This document explains the *why* behind design choices.
 
 ---
 
-## System Prompt
+## Response Format: Plain Text, Not JSON
 
-```python
-# solana_bot/components/agent/prompts.py
+All 4 agents use the same plain-text response format:
 
-def build_system_prompt() -> str:
-    return """\
-You are a senior crypto analyst evaluating Solana meme and DeFi tokens for a \
-trading bot. Your job is to score inbound buy signals 0.0–1.0 based on narrative \
-strength, social signal quality, and red flags.
-
-Be concise. Return JSON only. No markdown, no explanation outside the JSON.
-
-SCORING GUIDE:
-- 0.8–1.0: Strong narrative, organic social proof, clean on-chain — high conviction
-- 0.6–0.8: Decent signal, minor concerns — proceed with normal sizing
-- 0.4–0.6: Weak or mixed signal — reduce position or skip
-- 0.0–0.4: Spam/bot signals, rug indicators, no real narrative — reject
-
-ALWAYS return exactly: {"score": <float 0.0-1.0>, "reason": "<one sentence max 120 chars>"}
-"""
+```
+SCORE: <integer 0-100>
+REASON: <one sentence>
 ```
 
-**Why cache the system prompt:** At ~150 tokens, the system prompt is stable across all
-calls within a session. With `cache_control: {type: "ephemeral"}`, subsequent calls
-pay ~0.1× input cost for the cached prefix. At 1000 signals/day this saves ~90% of
-system prompt token cost.
+**Why plain text instead of JSON:**
+- Target models (Llama 3.1 8B, Gemini Flash) reliably emit `SCORE: 75` — they struggle with
+  correct JSON escaping when prompted fast at `temperature=0.1`
+- Simpler parsing = fewer failure modes
+- `_parse_response()` in `BaseAgent` handles this format with 5 lines of code
+
+**Why `temperature=0.1`:**
+Scoring must be consistent across repeated calls for the same token. Low temperature keeps
+the model deterministic. Higher temperature introduces noise that can flip gate decisions.
 
 ---
 
-## User Prompt Template
+## Parsing (`BaseAgent._parse_response`)
 
-```python
-def build_user_prompt(signal: dict) -> str:
-    """
-    Build the scoring prompt from a signal dict.
-    All fields are optional — missing values degrade gracefully to 'n/a'.
-    """
-    symbol         = signal.get("symbol", "")
-    mint           = signal.get("mint", "")
-    strategy       = signal.get("strategy", "")
-    sources        = signal.get("sources", "")          # e.g. "kol_wallet,twitter_spike"
-    liquidity_usdc = signal.get("liquidity_usdc", "0")
-    price_change_1h = signal.get("price_change_1h", "0")
-    kol_count      = signal.get("kol_count", "0")
-    social_sources = signal.get("social_sources", "")   # e.g. "3 telegram calls, 2 KOL tweets"
-
-    try:
-        liq = f"${float(liquidity_usdc):,.0f}"
-    except (ValueError, TypeError):
-        liq = liquidity_usdc
-
-    try:
-        pct = f"{float(price_change_1h):+.1f}%"
-    except (ValueError, TypeError):
-        pct = price_change_1h
-
-    return (
-        f"Token: {symbol} ({mint[:8]}...)\n"
-        f"Strategy: {strategy}\n"
-        f"Signal sources: {sources}\n"
-        f"Liquidity: {liq}\n"
-        f"Price change 1h: {pct}\n"
-        f"KOL wallets involved: {kol_count}\n"
-        f"Social signals: {social_sources or 'none'}\n"
-        f"\n"
-        f"Score this signal 0.0–1.0 based on:\n"
-        f"1. Narrative strength (is there a real story/use case?)\n"
-        f"2. Social signal quality (organic vs bot/paid)\n"
-        f"3. Red flags (if any from the data above)\n"
-        f"\n"
-        f"Return JSON: {{\"score\": 0.0-1.0, \"reason\": \"one sentence\"}}"
-    )
+```
+SCORE: 75        → score = 75.0   (clamped to [0, 100])
+REASON: Strong…  → reasoning = "Strong…"
 ```
 
-### Example prompts
+Fallback on any parse failure:
+- `score = 50.0` (neutral — fail-open, does not pull down or inflate final score)
+- `reasoning = "no_reason_parsed"`
 
-**High-conviction signal:**
-```
-Token: PEPEAI (7xKp3q...)
-Strategy: kol_copy_trade
-Signal sources: kol_wallet,twitter_spike,gmgn_trending
-Liquidity: $285,000
-Price change 1h: +42.3%
-KOL wallets involved: 3
-Social signals: 2 KOL tweets, 1 CT thread
-
-Score this signal 0.0–1.0 based on:
-1. Narrative strength (is there a real story/use case?)
-2. Social signal quality (organic vs bot/paid)
-3. Red flags (if any from the data above)
-
-Return JSON: {"score": 0.0-1.0, "reason": "one sentence"}
-```
-
-Expected response:
-```json
-{"score": 0.82, "reason": "3 KOL wallets on-chain + organic CT activity, $285k liquidity adequate, strong momentum"}
-```
-
-**Low-quality signal:**
-```
-Token: MOON2 (3aZr9x...)
-Strategy: social_alpha
-Signal sources: telegram_alpha
-Liquidity: $12,000
-Price change 1h: +180.0%
-KOL wallets involved: 0
-Social signals: 8 telegram calls
-
-Score this signal 0.0–1.0 based on:
-1. Narrative strength (is there a real story/use case?)
-2. Social signal quality (organic vs bot/paid)
-3. Red flags (if any from the data above)
-
-Return JSON: {"score": 0.0-1.0, "reason": "one sentence"}
-```
-
-Expected response:
-```json
-{"score": 0.18, "reason": "Telegram-only, zero KOL wallets, 180% pump on $12k liquidity — classic coordinated dump"}
-```
+The caller (`score_batch`) never raises on parse failure — it logs and continues.
 
 ---
 
-## Response Parsing
+## Per-Agent Prompt Design Rationale
 
-```python
-import json
-from typing import Optional
+### Market Agent
+**Goal:** Price momentum + entry quality  
+**Key data:** price, market_cap, liquidity, volume, price_change_1h, age_minutes, holder_count  
+**Design principle:** Include numeric bands in the prompt so the model maps numbers → score
+ranges without needing context about what "$50k liquidity" means in absolute terms.
 
-
-def parse_llm_response(raw: str) -> Optional[float]:
-    """
-    Parse LLM JSON response and extract score.
-
-    Handles:
-    - Clean JSON: {"score": 0.75, "reason": "..."}
-    - Markdown-wrapped: ```json\n{"score": 0.75}\n```
-    - Whitespace padding
-
-    Returns None on any parse failure (triggers passthrough in AgentConfirmer).
-    """
-    if not raw or not raw.strip():
-        return None
-
-    text = raw.strip()
-
-    # Strip markdown code fences if present
-    if text.startswith("```"):
-        lines = text.splitlines()
-        text = "\n".join(
-            line for line in lines
-            if not line.strip().startswith("```")
-        ).strip()
-
-    try:
-        data  = json.loads(text)
-        score = float(data["score"])
-        return max(0.0, min(1.0, score))   # clamp to [0, 1]
-    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
-        return None
+```
+- 90–100: Exceptional momentum, deep liquidity, strong volume, early entry
+- 70–89:  Good setup, reasonable liquidity, healthy trend
+- 50–69:  Neutral, mixed signals
+- 30–49:  Weak setup — low volume, thin liquidity, or late entry
+- 0–29:   Poor — no momentum, suspicious volume, or extremely thin
 ```
 
-**Fallback behavior table:**
+### Safety Agent
+**Goal:** Rug/scam detection  
+**Key data:** rugcheck_score, is_honeypot, liquidity_locked, top_holder_pct, holder_count  
+**Design principle:** Hard constraints embedded in the prompt — not soft guidance:
 
-| LLM Response | `parse_llm_response` | `AgentConfirmer` action |
-|---|---|---|
-| `{"score": 0.75, "reason": "..."}` | `0.75` | Blend confidence |
-| ` ```json\n{"score": 0.6}\n``` ` | `0.6` | Blend confidence |
-| `{"score": 1.5, "reason": "..."}` | `1.0` (clamped) | Blend confidence |
-| `{"error": "..."}` | `None` | Pass original through |
-| Empty string | `None` | Pass original through |
-| Timeout (asyncio.TimeoutError) | — | Pass original through |
-| Network error | — | Pass original through |
-
----
-
-## Confidence Adjustment Formula
-
-```python
-def blend_confidence(original: float, llm_score: float) -> float:
-    """
-    Blend on-chain confidence (70%) with LLM score (30%).
-
-    LLM contributes 30% weight — never fully overrides on-chain signals.
-    On-chain indicators (liquidity, wallet activity, KOL buys) are objective.
-    LLM adds soft-signal quality assessment on top.
-    """
-    return original * 0.7 + llm_score * 0.3
+```
+CRITICAL: If honeypot=YES, score must be 0.
+If rugcheck_score < 30, score must be <= 20.
 ```
 
-**Examples:**
+These rules duplicate the thresholds in the Safety Agent `_build_prompt`. Embedding them
+directly means even a weak model will respect the constraint without needing tool calls.
 
-| Original confidence | LLM score | Final confidence | Interpretation |
-|---|---|---|---|
-| 0.90 | 0.85 | 0.885 | Strong both ways — clear buy |
-| 0.75 | 0.20 | 0.585 | Good on-chain, weak narrative — reduced but passes |
-| 0.55 | 0.90 | 0.655 | Mediocre on-chain, excellent narrative — boosted |
-| 0.40 | 0.05 | 0.295 | Weak on-chain, LLM confirms spam — likely filtered by RiskManager |
-| 0.60 | None (timeout) | 0.60 (unchanged) | Passthrough — no LLM influence |
+**TIMEOUT = 3s** — shortest of all agents. Safety data is fully structured (no ambiguity),
+so the model needs minimal reasoning time. A safety timeout returns `score=50`, which
+with safety weight of 30% pulls the final score down to ≤ 80 if other agents score ~90
+— effectively blocking most approvals. This is the conservative default behavior.
+
+### Risk Agent
+**Goal:** R/R favorability given current portfolio state  
+**Key data:** open_positions_count, daily_loss_pct, liquidity_usdc, market_cap, price_change_1h, age_minutes  
+**Design principle:** Include portfolio state so the model can penalize over-exposure.
+A token with good market data should still score lower if the bot already has 4 open positions.
+
+### Social Agent
+**Goal:** Narrative + community quality  
+**Key data:** kol_buy_count, telegram_mentions, twitter_sentiment, narrative  
+**Design principle:** Sentiment is pre-labeled (`positive` / `neutral` / `negative`) to
+avoid the model needing to interpret a raw 0.0–1.0 float. The raw float is included in
+parentheses for nuance but the label carries the semantic weight.
+
+**TIMEOUT = 8s** — longest of all agents. Social analysis requires more reasoning
+(narrative quality is harder to derive mechanically than a rugcheck score).
 
 ---
 
 ## Token Budget
 
-`claude-haiku-4-5` pricing: $1.00 / 1M input, $5.00 / 1M output.
+| Agent | Provider | Model | Prompt tokens (est.) | Response tokens |
+|---|---|---|---|---|
+| Market | Groq | llama-3.1-8b-instant | ~120 | ~20 |
+| Safety | Groq | llama-3.1-8b-instant | ~100 | ~20 |
+| Risk | Groq | llama-3.1-8b-instant | ~110 | ~20 |
+| Social | Gemini | gemini-2.0-flash | ~100 | ~20 |
 
-| Component | Tokens (est.) |
-|---|---|
-| System prompt | ~150 (cached after first call) |
-| User prompt | ~120 |
-| Response | ~40 |
-| **Total per call** | **~310 tokens** |
-| **With cache hit** | **~160 tokens** (only user prompt + response) |
+`max_tokens=150` is set in `BaseAgent._score_one` — more than enough for `SCORE: 75\nREASON: ...`.
 
-At 1,000 BUY signals/day:
-- Without caching: ~310K tokens/day → ~$0.31/day
-- With system prompt caching: ~160K tokens/day → ~$0.16/day
+**Groq free tier:** 14,400 requests/day. With 3 keys and 15 tokens/batch:
+`5 calls/key/batch × 3 keys = 15 calls/batch`. At 100 batches/day = 1,500 calls/day —
+well within the free tier. Scale linearly with more keys (up to 5).
 
-Set `max_tokens=100` — response is always tiny JSON. Prevents runaway output costs.
+**Gemini Flash free tier:** 1M tokens/day. At ~120 tokens/call × 15 calls/batch × 100 batches/day
+= 180K tokens/day — 18% of the free tier.
 
 ---
 
-## Prompt Caching Implementation
+## Extending a Sub-Agent Prompt
 
-```python
-# In AgentConfirmer._score_signal()
+To add a new data field to a prompt:
 
-response = await self.client.messages.create(
-    model=self.settings.agent_model,
-    max_tokens=self.settings.agent_max_tokens,  # 100
-    system=[
-        {
-            "type": "text",
-            "text": build_system_prompt(),
-            "cache_control": {"type": "ephemeral"},  # TTL 5 min — stable across all calls
-        }
-    ],
-    messages=[
-        {"role": "user", "content": build_user_prompt(signal)}
-        # Note: no cache_control on user message — changes per signal
-    ],
-)
-```
+1. Add the field to `TokenContext` in `references/types.md`
+2. Populate it in `OrchestratorAgent._fetch_contexts()` in `references/orchestrator.md`
+3. Use it in the relevant agent's `_build_prompt()` in `references/sub-agents.md`
 
-Verify cache hits in logs by inspecting `response.usage`:
-```python
-usage = response.usage
-logger.debug(
-    "LLM usage: input={} cache_read={} cache_write={} output={}",
-    usage.input_tokens,
-    usage.cache_read_input_tokens,
-    usage.cache_creation_input_tokens,
-    usage.output_tokens,
-)
-```
+To change the scoring rubric (e.g., tighten safety threshold):
 
-A healthy session shows `cache_read_input_tokens > 0` after the first call.
+- Edit the numeric bands in `_build_prompt()` — no other code change needed
+- Gate 2 threshold (`APPROVAL_THRESHOLD = 80.0`) is separate from the prompt rubric
+
+---
+
+## What NOT to Do
+
+**Do not ask for JSON.** Models like Llama 3.1 8B will occasionally wrap it in markdown
+fences or add trailing commas. `SCORE: 75` never has that ambiguity.
+
+**Do not use multi-turn conversation.** One user message per token call. Adding a system
+message is unnecessary — the role instruction is embedded in the user prompt ("You are a
+crypto market analyst...") and small models handle it just as well.
+
+**Do not set `temperature=0`.** Some providers treat `temperature=0` differently or reject
+it. Use `0.1` — effectively deterministic for short scoring tasks.
+
+**Do not increase `max_tokens` beyond 150.** The model has nothing to add after one
+`SCORE` line and one `REASON` line. Extra tokens = extra latency + cost.

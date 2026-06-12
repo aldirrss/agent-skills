@@ -172,16 +172,16 @@ On startup, write default risk config to Redis if not already set:
 import json
 
 DEFAULT_RISK_CONFIG = {
-    "base_position_usdc": 50,
-    "max_wallet_pct": 0.10,
-    "stop_loss_pct": 0.15,
-    "take_profit_pct": 0.50,
+    "base_position_usdc":       50,
+    "max_wallet_pct":           0.10,
     "max_concurrent_positions": 5,
-    "max_daily_loss_usdc": 200,
-    "max_hold_time_seconds": 3600,
-    "min_liquidity_usdc": 30000,
-    "min_token_age_seconds": 300,
-    "max_top10_holder_rate": 0.50,
+    "max_daily_loss_usdc":      200,
+    "max_hold_time_seconds":    3600,
+    "min_liquidity_usdc":       30000,
+    "min_viable_position_usdc": 5,
+    "min_token_age_seconds":    300,
+    "max_top10_holder_rate":    0.50,
+    # stop_loss_pct and take_profit_pct are code constants (SL_TIERS, TAKE_PROFIT_PCT=1.0)
 }
 
 DEFAULT_STRATEGY_CONFIG = {

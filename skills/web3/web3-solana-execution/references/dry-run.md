@@ -256,7 +256,7 @@ Run through every item before setting `DRY_RUN=false`:
 - [ ] Keypair is a dedicated trading wallet — not the same as any other wallet you use
 
 ### Configuration
-- [ ] `config.risk` exists in Redis with valid JSON (max_position_usdc, stop_loss_pct, take_profit_pct)
+- [ ] `config.risk` exists in Redis with valid JSON (max_position_usdc, min_viable_position_usdc — stop_loss_pct/take_profit_pct are code constants, not config)
 - [ ] `config.strategy` exists in Redis with valid JSON (enabled_strategies, min_confidence_score)
 - [ ] Slippage values in config.risk are non-zero and appropriate for your token targets
 - [ ] `MAX_POSITION_USDC` constant in code matches your intended risk ceiling

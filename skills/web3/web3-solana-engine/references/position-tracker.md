@@ -58,26 +58,24 @@ class PositionTracker:
             await self._close_position(fill)
 
     async def _open_position(self, fill: dict):
-        from utils.risk import calculate_stop_loss_price, calculate_take_profit_price
-        risk_cfg = json.loads(await self.redis.get("config.risk") or "{}")
+        # SL and TP prices are calculated by RiskManager at approval time and
+        # passed through stream.swaps → stream.fills unchanged.
+        # PositionTracker must NOT recalculate them — it only reads and stores.
 
-        mint         = fill["mint"]
-        price_usdc   = Decimal(fill.get("price_usdc", "0"))
+        mint          = fill["mint"]
+        price_usdc    = Decimal(fill.get("price_usdc", "0"))
         amount_tokens = fill.get("amount_tokens", "0")
 
-        sl_pct = Decimal(str(risk_cfg.get("stop_loss_pct",  0.15)))
-        tp_pct = Decimal(str(risk_cfg.get("take_profit_pct", 0.50)))
-
         position = {
-            "mint":             mint,
-            "symbol":           fill.get("symbol", ""),
-            "entry_price":      str(price_usdc),
-            "stop_loss_price":  str(calculate_stop_loss_price(price_usdc, sl_pct)),
-            "take_profit_price":str(calculate_take_profit_price(price_usdc, tp_pct)),
-            "amount_tokens":    amount_tokens,
-            "amount_usdc_in":   fill.get("amount_usdc", "0"),
-            "entry_ts":         fill.get("ts", str(int(time.time() * 1000))),
-            "fill_id":          fill.get("fill_id", ""),
+            "mint":              mint,
+            "symbol":            fill.get("symbol", ""),
+            "entry_price":       str(price_usdc),
+            "stop_loss_price":   fill.get("stop_loss_price",   "0"),
+            "take_profit_price": fill.get("take_profit_price", "0"),
+            "amount_tokens":     amount_tokens,
+            "amount_usdc_in":    fill.get("amount_usdc", "0"),
+            "entry_ts":          fill.get("ts", str(int(time.time() * 1000))),
+            "fill_id":           fill.get("fill_id", ""),
         }
         await self.redis.set(f"state.position.{mint}", json.dumps(position))
         await self.redis.sadd("state.bot.tokens", mint)

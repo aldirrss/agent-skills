@@ -1,6 +1,6 @@
 ---
 name: web3-solana-risk
-description: RiskManager component for Solana DEX trading bot — position sizing, safety gate, circuit breaker, and swap request validation. Use this whenever the user is building or debugging the RiskManager layer, including: position size calculation, max concurrent positions, daily loss circuit breaker, per-strategy size multipliers, slippage derivation from liquidity tier, or the full signal-to-swap pipeline. Trigger even when the user mentions one specific area (e.g. "how to size position by confidence", "why is bot rejecting signals", "how to set stop loss at entry", "circuit breaker not triggering"). Reads from stream.signals, writes to stream.swaps.
+description: RiskManager component for Solana DEX trading bot — position sizing, safety gate, circuit breaker, and swap request validation. Use this whenever the user is building or debugging the RiskManager layer, including: position size calculation, max concurrent positions, daily loss circuit breaker, per-strategy size multipliers, slippage derivation from liquidity tier, or the full signal-to-swap pipeline. Trigger even when the user mentions one specific area (e.g. "how to size position by confidence", "why is bot rejecting signals", "how to set stop loss at entry", "circuit breaker not triggering"). Reads from stream.agent.approved (BUY) and stream.signals (SELL passthrough), writes to stream.swaps.
 requires:
   - web3-solana
   - web3-solana-architecture
@@ -8,23 +8,31 @@ requires:
 
 # web3-solana-risk
 
-RiskManager is the **safety gate** between Strategy and Execution. It consumes buy/sell decisions from `stream.signals`, validates every decision against a layered set of safety rules, sizes positions, derives slippage, and publishes approved swap requests to `stream.swaps`.
+RiskManager is the **safety gate** between the agent layer and Execution. It consumes
+approved buy candidates from `stream.agent.approved` and SELL signals from `stream.signals`,
+validates every decision against a layered set of safety rules, sizes positions, derives
+slippage, and publishes approved swap requests to `stream.swaps`.
 
-RiskManager never touches the wallet, never calls Jupiter, never writes to PostgreSQL. Its only inputs are `stream.signals` and Redis state. Its only output is `stream.swaps`.
+RiskManager never touches the wallet, never calls Jupiter, never writes to PostgreSQL.
+Its inputs are `stream.agent.approved` (BUY) and `stream.signals` (SELL). Its only output is `stream.swaps`.
 
 ## Role in the Pipeline
 
 ```
-Strategy
-  └── XADD stream.signals  →  { action=BUY|SELL, mint, confidence, liquidity_usdc, ... }
+OrchestratorAgent (GATE 2)
+  └── XADD stream.agent.approved  →  { mint, final_score, reasoning, ... }
+
+Strategy (SELL only — passthrough via SignalAggregator)
+  └── XADD stream.signals  →  { action=SELL, mint, ... }
 
 RiskManager  ← this skill
-  ├── XREADGROUP stream.signals  (consumer group: risk-group / risk-manager-1)
-  ├── Safety gate (all checks in sequence — first failure rejects the signal)
-  ├── Position sizing  (confidence × strategy_multiplier, capped at MAX_POSITION_USDC)
+  ├── XREADGROUP stream.agent.approved  (consumer group: risk-group / risk-manager-1)
+  ├── XREADGROUP stream.signals          (consumer group: risk-sell-group / risk-manager-1)
+  ├── Safety gate (all checks in sequence — first failure rejects)
+  ├── Position sizing  (final_score/100 × strategy_multiplier, capped at MAX_POSITION_USDC)
   ├── Slippage derivation  (liquidity tier → bps)
   └── XADD stream.swaps  →  { side, amount_usdc|amount_tokens, slippage_bps, stop_loss_price, ... }
-      XACK stream.signals
+      XACK stream.agent.approved / stream.signals
 
 Execution
   └── XREADGROUP stream.swaps  →  signs + sends Jupiter swap
@@ -54,6 +62,36 @@ Each strategy carries a risk multiplier applied on top of the base position size
 | `momentum_spike` | 0.8 | Volume/price spike can be manipulated |
 | `new_launch_snipe` | 0.5 | Extreme novelty risk — unproven token |
 | `social_alpha` | 0.5 | Highest noise-to-signal ratio of all sources |
+
+## TP/SL Rules (Code Constants)
+
+Take profit and stop loss are **code constants**, not config values.
+
+**Take Profit — 2× Modal**
+```
+TAKE_PROFIT_PCT = 1.0  →  price must 2× entry to trigger TP
+```
+Fixed at 100% gain. Every trade targets 2× the position size (modal).
+
+**Stop Loss — Liquidity Tier**
+
+SL percentage is derived from the token's liquidity depth at approval time:
+
+| Liquidity (USDC) | SL % | R/R Ratio |
+|---|---|---|
+| >= 500,000 | 15% | 6.7 : 1 |
+| >= 50,000 | 20% | 5.0 : 1 |
+| >= 10,000 | 30% | 3.3 : 1 |
+| < 10,000 | 40% | 2.5 : 1 |
+
+Thinner liquidity = wider SL because (1) exit slippage eats more of the real exit price, and (2) thin pools are noisier — a tight SL would be triggered by normal volatility.
+
+**Position Minimum**
+
+```python
+MIN_VIABLE_POSITION_USDC = 5  # from config.risk.min_viable_position_usdc
+```
+Positions below $5 USDC are rejected — gas fees and slippage would consume the entire trade.
 
 ## Slippage Tiers
 
@@ -94,7 +132,7 @@ All checks run in order. First failure rejects the signal and ACKs the message.
   "slippage_bps":     "100",
   "strategy":         "kol_copy_trade",
   "stop_loss_price":  "0.00001048",
-  "take_profit_price": "0.00001850",
+  "take_profit_price": "0.00002466",
   "entry_price":      "0.00001233",
   "ts":               "1718000000100"
 }

@@ -153,11 +153,13 @@ def _register_signals(stop_event: asyncio.Event) -> None:
 
 async def _ensure_consumer_groups(redis) -> None:
     groups = [
-        ("stream.signals",  "risk-group",    "risk-manager-1"),
-        ("stream.swaps",    "exec-group",    "execution-1"),
-        ("stream.fills",    "tracker-group", "position-tracker-1"),
-        ("stream.fills",    "db-group",      "db-writer-1"),
-        ("stream.commands", "cmd-group",     "command-listener-1"),
+        ("stream.signals",          "aggregator-group",   "aggregator-1"),
+        ("stream.agent.eligible",   "orchestrator-group", "orchestrator-1"),
+        ("stream.agent.approved",   "risk-group",         "risk-manager-1"),
+        ("stream.swaps",            "exec-group",         "execution-1"),
+        ("stream.fills",            "tracker-group",      "position-tracker-1"),
+        ("stream.fills",            "db-group",           "db-writer-1"),
+        ("stream.commands",         "cmd-group",          "command-listener-1"),
     ]
     for stream, group, _ in groups:
         try:

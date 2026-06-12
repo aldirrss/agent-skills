@@ -35,28 +35,35 @@ def calculate_position_size(
 
 Default `base_position_usdc` = 50 USDC. Adjust in `config.risk`.
 
-## Stop Loss
+## Stop Loss and Take Profit
 
-Stop loss is calculated at entry and stored immediately in position state.
+**Take Profit — 2× modal (code constant):**
 
 ```python
-def calculate_stop_loss_price(entry_price: Decimal, stop_loss_pct: Decimal) -> Decimal:
-    """stop_loss_pct e.g. Decimal('0.15') for 15% below entry."""
-    return entry_price * (1 - stop_loss_pct)
+TAKE_PROFIT_PCT = Decimal("1.0")   # price must double to hit TP
 
-def calculate_take_profit_price(entry_price: Decimal, take_profit_pct: Decimal) -> Decimal:
-    """take_profit_pct e.g. Decimal('0.30') for 30% above entry."""
-    return entry_price * (1 + take_profit_pct)
+def calculate_take_profit_price(entry_price: Decimal) -> Decimal:
+    return entry_price * (1 + TAKE_PROFIT_PCT)
 ```
 
-Default thresholds (adjust via `config.risk`):
-```json
-{
-  "stop_loss_pct": 0.15,
-  "take_profit_pct": 0.50,
-  "trailing_stop": false
-}
+**Stop Loss — liquidity tier (code constant, not configurable):**
+
+```python
+SL_TIERS = [
+    (500_000, Decimal("0.15")),   # deep pool — tight SL safe
+    ( 50_000, Decimal("0.20")),
+    ( 10_000, Decimal("0.30")),
+    (      0, Decimal("0.40")),   # very thin — wide buffer
+]
+
+def calculate_stop_loss_price(entry_price: Decimal, liquidity_usdc: float) -> Decimal:
+    for threshold, pct in SL_TIERS:
+        if liquidity_usdc >= threshold:
+            return entry_price * (1 - pct)
+    return entry_price * Decimal("0.60")   # fallback
 ```
+
+`stop_loss_pct` and `take_profit_pct` are **not** in `config.risk` — they are code constants in `SL_TIERS` and `TAKE_PROFIT_PCT`. See `web3-solana-risk → references/position-sizing.md` for full R/R table.
 
 Stop loss and take profit are stored in position state at entry:
 ```python
@@ -64,8 +71,8 @@ Stop loss and take profit are stored in position state at entry:
 {
   "mint": "...",
   "entry_price": "0.00001233",
-  "stop_loss_price": "0.00001048",   # entry * (1 - 0.15)
-  "take_profit_price": "0.00001850", # entry * (1 + 0.50)
+  "stop_loss_price": "0.00001048",   # entry * (1 - sl_pct from SL_TIERS)
+  "take_profit_price": "0.00002466", # entry * 2.0  (2× modal)
   "amount_tokens": "4056000",
   "entry_ts": 1718000000000
 }
@@ -155,16 +162,16 @@ async def check_max_hold_time(pos: dict, redis) -> bool:
 Full `config.risk` schema:
 ```json
 {
-  "base_position_usdc": 50,
-  "max_wallet_pct": 0.10,
-  "stop_loss_pct": 0.15,
-  "take_profit_pct": 0.50,
-  "trailing_stop": false,
+  "base_position_usdc":       50,
+  "max_wallet_pct":           0.10,
   "max_concurrent_positions": 5,
-  "max_daily_loss_usdc": 200,
-  "max_hold_time_seconds": 3600,
-  "min_liquidity_usdc": 30000
+  "max_daily_loss_usdc":      200,
+  "max_hold_time_seconds":    3600,
+  "min_liquidity_usdc":       30000,
+  "min_viable_position_usdc": 5
 }
 ```
+
+`stop_loss_pct` and `take_profit_pct` are intentionally absent — they are code constants (`SL_TIERS`, `TAKE_PROFIT_PCT`) that cannot be overridden at runtime.
 
 Validated by pydantic at startup. Any value outside safe range raises `ValueError` — bot does not start with invalid risk config.

@@ -20,14 +20,16 @@ This skill defines the **canonical architecture** for a production Solana DEX tr
 ┌──────────────────────────▼──────────────────────────────────────┐
 │  BOT ENGINE (single asyncio process)                            │
 │                                                                 │
-│  CommandListener ─────────────────────────────────────────────  │
-│  Scanner          (poll DEXScreener, GMGN, wallet tracker)      │
-│  Strategy         (evaluate signals, build decision)            │
-│  RiskManager      (gate: rugpull, liquidity, position limits)   │
-│  Execution        (build tx, sign, send via Jupiter)            │
-│  PositionTracker  (track open positions, PnL)                   │
-│  DBWriter         (async write to PostgreSQL)                   │
-│  Monitor          (log, alert Telegram/Discord, heartbeat)      │
+│  CommandListener   ───────────────────────────────────────────  │
+│  Scanner           (poll DEXScreener, GMGN, wallet tracker)     │
+│  Strategy          (evaluate signals per strategy, x6 parallel) │
+│  SignalAggregator  (GATE 1: min-match, top-15 rank, circuit-bkr)│
+│  OrchestratorAgent (dispatch Market/Safety/Risk/Social agents)  │
+│  RiskManager       (GATE 2: position sizing, TP/SL rule-based)  │
+│  Execution         (build tx, sign, send via Jupiter)           │
+│  PositionTracker   (track open positions, PnL)                  │
+│  DBWriter          (async write to PostgreSQL)                  │
+│  Monitor           (log, alert Telegram/Discord, heartbeat)     │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ READ / WRITE
             ┌──────────────▼──────────────┐
@@ -100,7 +102,9 @@ asyncpg          # async PostgreSQL driver
 
 ```
 # Streams (persistent, replayable)
-stream.signals              # Strategy → RiskManager
+stream.signals              # Strategy → SignalAggregator (includes strategy_name field)
+stream.agent.eligible       # SignalAggregator → OrchestratorAgent (batch of top-N mints)
+stream.agent.approved       # OrchestratorAgent → RiskManager (score >= 80, with agent scores)
 stream.swaps                # RiskManager → Execution
 stream.fills                # Execution → PositionTracker + DBWriter
 stream.commands             # external → CommandListener
@@ -117,8 +121,15 @@ state.bot.status            # "running" | "paused" | "stopped"
 state.bot.tokens            # SET of active token mints being tracked
 state.price.{mint}          # latest token price in SOL/USDC, float string
 state.kol.wallets           # SET of KOL wallet addresses to track
+state.circuit_breaker       # "open" | "closed" — written by RiskManager
+state.daily_loss_pct        # float — accumulated daily loss %, written by RiskManager
+state.open_positions_count  # int — current open position count, written by PositionTracker
 config.strategy             # strategy parameters, JSON
 config.risk                 # risk parameters (max position, stop loss %), JSON
+
+# SignalAggregator keys
+signal.match.{mint}         # HASH strategy_name→timestamp, TTL 900s
+agent.queue                 # ZSET mint→composite_score, cleared after each dispatch
 ```
 
 ## Component Responsibilities
@@ -126,10 +137,12 @@ config.risk                 # risk parameters (max position, stop loss %), JSON
 | Component | Reads from | Writes to | Must NOT |
 |---|---|---|---|
 | Scanner | DEXScreener, GMGN, Solana RPC | `scanner.*` pub/sub | Place orders |
-| Strategy | `scanner.*` pub/sub | `stream.signals` | Access DB directly |
-| RiskManager | `stream.signals` | `stream.swaps` | Modify positions directly |
+| Strategy | `scanner.*` pub/sub | `stream.signals` (with `strategy_name`) | Access DB directly |
+| SignalAggregator | `stream.signals` | `signal.match.*`, `agent.queue`, `stream.agent.eligible` | Place orders |
+| OrchestratorAgent | `stream.agent.eligible` | `stream.agent.approved`, LLM calls | Modify state directly |
+| RiskManager | `stream.agent.approved` | `stream.swaps`, `state.circuit_breaker` | Touch keypair |
 | Execution | `stream.swaps` | `stream.fills`, Solana RPC | Skip fill verification |
-| PositionTracker | `stream.fills` | `state.position.*`, `position.updates` | Place orders |
+| PositionTracker | `stream.fills` | `state.position.*`, `state.open_positions_count`, `position.updates` | Place orders |
 | DBWriter | `stream.fills`, `stream.signals` | PostgreSQL | Block any other component |
 | CommandListener | `stream.commands` | Spawn/cancel tasks, `state.bot.status` | Process orders |
 | Monitor | `position.updates`, `state.bot.status` | Telegram/Discord alerts, logs | Modify state |

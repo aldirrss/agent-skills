@@ -21,16 +21,35 @@ Full lifecycle from signal detection to swap confirmation.
    ├── builds signal with confidence=0.82
    └── XADD stream.signals  →  {signal_id, mint, action=BUY, confidence, sources}
 
-3. RiskManager
-   ├── XREAD stream.signals (consumer group)
+3. SignalAggregator (GATE 1)
+   ├── XREAD stream.signals (consumer group: aggregator-group)
+   ├── records match for mint: signal.match.{mint} HASH strategy→ts (TTL 900s)
+   ├── updates agent.queue ZSET with composite score
+   ├── checks: >= MIN_STRATEGIES (2) matched within their windows
+   ├── ranks: top-15 by composite score
+   └── XADD stream.agent.eligible  →  {batch_id, mints=[mint]}
+       XACK stream.signals
+
+4. OrchestratorAgent (GATE 2)
+   ├── XREAD stream.agent.eligible (consumer group: orchestrator-group)
+   ├── fetches TokenContext from Redis (state.price.*, state.token.*, state.safety.*, state.social.*)
+   ├── dispatches 4 sub-agents in parallel (Market, Safety, Risk, Social) via litellm
+   ├── aggregates scores: safety=30%, market=25%, risk=25%, social=20%
+   ├── checks cache: llm.score.{mint} (TTL 300s — skip re-scoring)
+   ├── final_score = 84.5 (>= 80 threshold)
+   └── XADD stream.agent.approved  →  {mint, final_score, agent scores, reasoning, batch_id}
+       XACK stream.agent.eligible
+
+5. RiskManager
+   ├── XREAD stream.agent.approved (consumer group: risk-group)
    ├── checks state.position.{mint} → no open position (clear)
    ├── checks config.risk → max_position_usdc=100, current exposure OK
    ├── checks liquidity_usdc=450000 → above min threshold (50000)
-   ├── calculates position size: 50 USDC (50% of max, scaled by confidence)
+   ├── calculates position size: 50 USDC (scaled by final_score/100 × strategy_multiplier)
    └── XADD stream.swaps  →  {swap_id, mint, side=BUY, amount_usdc=50}
-       XACK stream.signals
+       XACK stream.agent.approved
 
-4. Execution
+6. Execution
    ├── XREAD stream.swaps (consumer group)
    ├── acquires asyncio.Lock for mint
    ├── calls Jupiter V6 /quote → gets best route
@@ -42,19 +61,19 @@ Full lifecycle from signal detection to swap confirmation.
        XACK stream.swaps
        releases asyncio.Lock
 
-5. PositionTracker
+7. PositionTracker
    ├── XREAD stream.fills (consumer group: tracker-group)
    ├── creates position record: {mint, entry_price, amount_tokens, entry_ts}
    ├── SET state.position.{mint} = JSON
    └── PUBLISH position.updates  →  {mint, side=LONG, entry_price, pnl_pct=0}
        XACK stream.fills
 
-6. DBWriter
+8. DBWriter
    ├── XREAD stream.fills (consumer group: db-group)
    ├── INSERT INTO trades (mint, side, amount, price, tx_sig, ts)
    └── XACK stream.fills
 
-7. Monitor
+9. Monitor
    ├── subscribes to position.updates
    └── sends Telegram alert: "✅ BUY BONK | 50 USDC | entry 0.00001233"
 ```
