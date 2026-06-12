@@ -36,13 +36,16 @@ Gunakan @web3-solana-agent references/key-pool.md.
 Buat components/key_pool.py.
 
 Constraint wajib:
-- Setiap agent punya primary provider + ordered fallback chain (lihat DEFAULT_AGENT_PROVIDER_CHAIN)
+- Setiap agent punya primary provider + ordered fallback chain (DEFAULT_AGENT_PROVIDER_CHAIN)
 - Minimum 3 keys hanya wajib untuk PRIMARY provider — raise ValueError di __init__ jika kurang
 - Fallback providers bersifat opsional — dilewati jika tidak ada keys
 - Rotasi round-robin per provider: token_index % len(keys)
 - Baca dari settings/env: GROQ_API_KEYS, GEMINI_API_KEYS, OPENROUTER_API_KEYS (comma-separated)
-- provider_chain_for_agent(agent_name) → list[list[ProviderKey]] (per provider, dalam urutan fallback)
-- primary_key_for_agent(agent_name, token_index) → ProviderKey (shortcut untuk primary saja)
+- provider_chain_for_agent(agent_name) → list[list[ProviderKey]]
+- primary_key_for_agent(agent_name, token_index) → ProviderKey
+- semaphore_for_key(api_key) → asyncio.Semaphore (max_concurrent_per_key=2, configurable)
+- agents_for_strategy(strategy) → list[str] dari STRATEGY_REQUIRED_AGENTS
+- normalize_weights(required_agents) → dict[str, float] yang sum ke 1.0
 ```
 
 ---
@@ -71,6 +74,12 @@ Poin kunci:
 - Provider: Groq untuk market/safety/risk, Gemini Flash untuk social (via litellm)
 - Response format: SCORE:/REASON: (plain text, bukan JSON)
 - Fail-open: agent timeout/error → score sub-agent = 50 (netral), tetap lanjut
+- Per-strategy agent selection: tanya key_pool.agents_for_strategy(strategy) sebelum dispatch
+  → skip agents yang tidak dibutuhkan (contoh: new_launch_snipe skip Social untuk hemat 8s)
+- Weight renormalization: gunakan normalize_weights(required_agents) bukan AGENT_WEIGHTS raw
+  → final_score = sum(scores[a] * weights[a] for a in required_agents)
+- Semaphore pada setiap LLM call: async with key_pool.semaphore_for_key(key.api_key)
+- LLM cache: cek llm.score.{mint} (TTL 300s) sebelum panggil LLM — skip scoring jika hit
 ```
 
 ---

@@ -60,10 +60,15 @@ Redis key: `signal.match.{mint}` — Hash of `strategy_name → unix_timestamp`.
 Master TTL on the hash = max window (900 s). Valid match count is computed at read time
 by filtering out entries older than their strategy's window.
 
-### Rule 2 — Top-15 Ranked Queue (not a hard reject)
-Tokens are scored and placed in a Redis Sorted Set. At dispatch time, take `min(queue_size, 15)`.
-If only 6 tokens are in the queue, all 6 go to Orchestrator. The queue is cleared after each
+### Rule 2 — Top-N Ranked Queue (not a hard reject)
+Tokens are scored and placed in a Redis Sorted Set. At dispatch time, take `min(queue_size, gate1_max_agent_queue)`.
+If only 4 tokens are in the queue, all 4 go to Orchestrator. The queue is cleared after each
 dispatch batch so stale candidates do not persist.
+
+**Default `gate1_max_agent_queue = 5`** (configurable via Settings). Tune based on key count:
+- 3 keys free tier → keep at 3–5 to stay within RPM
+- 5 keys free tier → 5–10
+- Paid tier → up to 15
 
 **Composite score formula:**
 ```

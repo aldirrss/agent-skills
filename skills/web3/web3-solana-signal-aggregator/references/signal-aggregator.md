@@ -313,8 +313,9 @@ tasks = [
 Add to `Settings` (pydantic-settings):
 
 ```python
-gate1_min_strategy_match: int = 2    # Rule 1: minimum strategy match count
-gate1_max_agent_queue:    int = 15   # Rule 2: max tokens dispatched per batch
+gate1_min_strategy_match: int = 2   # Rule 1: minimum strategy match count
+gate1_max_agent_queue:    int = 5   # Rule 2: top-N per batch — tune with key count:
+                                    #   3 keys → 3–5, 5 keys → 5–10, paid tier → up to 15
 # Rule 3 reads state.bot.status and config.risk from Redis — no settings fields needed
 ```
 

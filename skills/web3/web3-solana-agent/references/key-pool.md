@@ -35,6 +35,7 @@ Example: 3 Groq keys, 15 tokens → Token 1→Key1, Token 2→Key2, Token 3→Ke
 
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass
 
@@ -43,8 +44,9 @@ from solana_bot.config import Settings
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-MIN_KEYS_PER_PROVIDER = 3
-MAX_KEYS_PER_PROVIDER = 5
+MIN_KEYS_PER_PROVIDER  = 3
+MAX_KEYS_PER_PROVIDER  = 5
+MAX_CONCURRENT_PER_KEY = 2   # semaphore per API key — stays well under 30 RPM
 
 # First entry = primary, rest = fallbacks in order
 DEFAULT_AGENT_PROVIDER_CHAIN: dict[str, list[str]] = {
@@ -76,6 +78,24 @@ DEFAULT_AGENT_MODELS: dict[str, dict[str, str]] = {
         "groq":       "groq/llama-3.1-8b-instant",
         "openrouter": "openrouter/meta-llama/llama-3.1-8b-instruct:free",
     },
+}
+
+AGENT_WEIGHTS: dict[str, float] = {
+    "market": 0.25,
+    "safety": 0.30,
+    "risk":   0.25,
+    "social": 0.20,
+}
+
+# Per-strategy agent selection — only run agents that add signal value.
+# Skipping Social (8s timeout) cuts latency from ~8s to ~3s for speed-critical strategies.
+STRATEGY_REQUIRED_AGENTS: dict[str, list[str]] = {
+    "new_launch_snipe":       ["safety", "market"],                       # 60s window  — skip Social
+    "momentum_spike":         ["safety", "market"],                       # 120s window — skip Social
+    "kol_copy_trade":         ["safety", "risk"],                         # on-chain signal already confirmed
+    "graduation_trade":       ["safety", "market", "risk", "social"],    # 300s — full eval
+    "smart_money_confluence": ["safety", "risk", "social"],              # SM already implies price signal
+    "social_alpha":           ["safety", "social"],                       # Social IS the source
 }
 
 # Env var names for API keys per provider (comma-separated)
@@ -161,6 +181,29 @@ class KeyPoolManager:
                 + "\n".join(errors)
             )
 
+        # Step 4 — per-key concurrency semaphore (prevents RPM burst)
+        # max_concurrent_per_key=2: at most 2 calls per key at once → stays under 30 RPM
+        # Raise this value if you have paid-tier keys with higher RPM limits
+        max_concurrent = getattr(settings, "max_concurrent_per_key", MAX_CONCURRENT_PER_KEY)
+        self._key_semaphores: dict[str, asyncio.Semaphore] = {}
+        self._max_concurrent = max_concurrent
+
+    def semaphore_for_key(self, api_key: str) -> asyncio.Semaphore:
+        """
+        Return (creating if needed) a per-key semaphore.
+        Caps concurrent LLM calls on this key to prevent RPM burst.
+        """
+        if api_key not in self._key_semaphores:
+            self._key_semaphores[api_key] = asyncio.Semaphore(self._max_concurrent)
+        return self._key_semaphores[api_key]
+
+    def agents_for_strategy(self, strategy: str) -> list[str]:
+        """
+        Return sub-agent names required for this strategy.
+        Falls back to all 4 agents for unknown strategies.
+        """
+        return STRATEGY_REQUIRED_AGENTS.get(strategy, list(AGENT_WEIGHTS.keys()))
+
     def provider_chain_for_agent(self, agent_name: str) -> list[list[ProviderKey]]:
         """
         Return key pools in fallback order for the agent.
@@ -216,20 +259,22 @@ async def score_with_fallback(
 ) -> int:
     """
     Try primary provider first, fall back to next providers on error.
+    Uses per-key semaphore to stay within provider RPM limits.
     Returns score 0–100. Returns 50 (neutral) if all providers fail.
     """
     for provider_keys in key_pool.provider_chain_for_agent(self.name):
         key = provider_keys[token_index % len(provider_keys)]
         try:
-            response = await asyncio.wait_for(
-                litellm.acompletion(
-                    model=key.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    api_key=key.api_key,
-                    max_tokens=100,
-                ),
-                timeout=timeout_s,
-            )
+            async with key_pool.semaphore_for_key(key.api_key):   # ← rate limiter
+                response = await asyncio.wait_for(
+                    litellm.acompletion(
+                        model=key.model,
+                        messages=[{"role": "user", "content": prompt}],
+                        api_key=key.api_key,
+                        max_tokens=100,
+                    ),
+                    timeout=timeout_s,
+                )
             return parse_score(response.choices[0].message.content)
         except asyncio.TimeoutError:
             self.log.warning(f"[{self.name}] provider={key.provider} timeout — trying fallback")
@@ -237,6 +282,38 @@ async def score_with_fallback(
             self.log.warning(f"[{self.name}] provider={key.provider} error={e!r} — trying fallback")
     self.log.error(f"[{self.name}] all providers exhausted — returning neutral score 50")
     return 50  # fail-open
+```
+
+---
+
+## Weight Renormalization
+
+When a strategy skips agents, the remaining weights must sum to 1.0 so final_score stays 0–100.
+
+```python
+def normalize_weights(required_agents: list[str]) -> dict[str, float]:
+    """
+    Renormalize AGENT_WEIGHTS for a subset of agents.
+
+    Example — new_launch_snipe uses only safety(0.30) + market(0.25):
+        total = 0.55
+        → safety: 0.545, market: 0.455
+    """
+    active = {k: AGENT_WEIGHTS[k] for k in required_agents if k in AGENT_WEIGHTS}
+    total  = sum(active.values())
+    return {k: v / total for k, v in active.items()} if total > 0 else active
+```
+
+Usage in OrchestratorAgent:
+```python
+required = key_pool.agents_for_strategy(strategy)   # e.g. ["safety", "market"]
+weights  = normalize_weights(required)               # renormalized to sum 1.0
+
+scores = {}
+for agent_name in required:
+    scores[agent_name] = await agents[agent_name].score(...)
+
+final_score = sum(scores[a] * weights[a] for a in required)
 ```
 
 ---
@@ -288,4 +365,9 @@ gemini_api_keys:     str = ""   # primary: social
 openrouter_api_keys: str = ""   # fallback (optional)
 anthropic_api_keys:  str = ""   # fallback (optional)
 openai_api_keys:     str = ""   # fallback (optional)
+
+# Rate limiter: max simultaneous calls per API key
+# Default 2 → stays safely under 30 RPM on Groq free tier
+# Raise to 5–10 for paid-tier keys with higher RPM limits
+max_concurrent_per_key: int = 2
 ```

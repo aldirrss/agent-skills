@@ -58,6 +58,21 @@ Each sub-agent returns a score 0–100 and a one-line reasoning string.
 
 Safety Agent carries the highest weight — a low safety score should decisively pull down the final score.
 
+**Not all agents run for every strategy.** Per-strategy selection skips Social (8s) for
+time-critical strategies, cutting latency from ~8s to ~3s:
+
+| Strategy | Agents Dipakai | Dilewati | Latency |
+|---|---|---|---|
+| `new_launch_snipe` | Safety + Market | Risk, Social | ~3s |
+| `momentum_spike` | Safety + Market | Risk, Social | ~3s |
+| `kol_copy_trade` | Safety + Risk | Market, Social | ~3s |
+| `graduation_trade` | Safety + Market + Risk + Social | — | ~8s |
+| `smart_money_confluence` | Safety + Risk + Social | Market | ~6s |
+| `social_alpha` | Safety + Social | Market, Risk | ~6s |
+
+When agents are skipped, weights are renormalized so final_score stays 0–100.
+Config: `STRATEGY_REQUIRED_AGENTS` in `key_pool.py` (code constant, overridable via `config.agent`).
+
 ## Score Aggregation
 
 ```python
@@ -81,6 +96,9 @@ token_index % len(keys)  →  key assignment per provider
 
 **Engine tidak bisa jalan** jika primary provider < 3 keys — divalidasi saat startup.
 Fallback providers bersifat opsional.
+
+**Per-key semaphore** (`max_concurrent_per_key=2`) mencegah RPM burst — maksimal 2 calls
+bersamaan per API key, antrian sisanya menunggu. Naikkan untuk paid-tier keys.
 
 Default chain per-agent (free tier):
 
