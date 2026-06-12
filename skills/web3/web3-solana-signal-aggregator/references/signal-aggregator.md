@@ -38,7 +38,7 @@ class SignalAggregator:
 
     # Gate thresholds — override via Settings
     MIN_STRATEGY_MATCH: int = 2
-    MAX_AGENT_QUEUE:    int = 15
+    MAX_AGENT_QUEUE:    int = 5
 
     # Per-strategy staleness windows (seconds)
     STRATEGY_WINDOWS: dict[str, int] = {

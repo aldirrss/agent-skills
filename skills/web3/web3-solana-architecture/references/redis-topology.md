@@ -214,9 +214,10 @@ Every stream uses a Redis consumer group for at-least-once delivery:
 
 | Stream | Group | Consumer | Reader |
 |---|---|---|---|
-| `stream.signals` | `aggregator-group` | `aggregator-1` | SignalAggregator |
+| `stream.signals` | `aggregator-group` | `aggregator-1` | SignalAggregator (BUY signals) |
+| `stream.signals` | `risk-sell-group` | `risk-manager-1` | RiskManager (SELL passthrough — bypasses both gates) |
 | `stream.agent.eligible` | `orchestrator-group` | `orchestrator-1` | OrchestratorAgent |
-| `stream.agent.approved` | `risk-group` | `risk-manager-1` | RiskManager |
+| `stream.agent.approved` | `risk-group` | `risk-manager-1` | RiskManager (BUY — after GATE 2) |
 | `stream.swaps` | `exec-group` | `execution-1` | Execution |
 | `stream.fills` | `tracker-group` | `position-tracker-1` | PositionTracker |
 | `stream.fills` | `db-group` | `db-writer-1` | DBWriter |
