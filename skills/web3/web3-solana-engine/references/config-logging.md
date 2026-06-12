@@ -176,6 +176,7 @@ DEFAULT_RISK_CONFIG = {
     "max_wallet_pct":           0.10,
     "max_concurrent_positions": 5,
     "max_daily_loss_usdc":      200,
+    "max_daily_profit_usdc":    100,
     "max_hold_time_seconds":    3600,
     "min_liquidity_usdc":       30000,
     "min_viable_position_usdc": 5,

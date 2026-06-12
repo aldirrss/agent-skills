@@ -53,7 +53,8 @@ async def check_max_concurrent_positions(redis) -> tuple[bool, str]:
 
 async def check_circuit_breaker(redis, risk_cfg: dict) -> tuple[bool, str]:
     """
-    Halt all new entries if cumulative daily loss exceeds the configured threshold.
+    Halt all new entries if cumulative daily loss exceeds the configured threshold,
+    OR if daily profit cap has been reached (lock-in gains).
 
     When triggered:
     - The signal is rejected and ACK'd (not re-queued)
@@ -64,16 +65,24 @@ async def check_circuit_breaker(redis, risk_cfg: dict) -> tuple[bool, str]:
     Negative value = net loss. Positive value = net profit.
     """
     daily_pnl    = Decimal(await redis.get("stats.daily_pnl") or "0")
-    max_loss     = Decimal(str(risk_cfg.get("max_daily_loss_usdc", 200)))
+    max_loss     = Decimal(str(risk_cfg.get("max_daily_loss_usdc",   200)))
+    max_profit   = Decimal(str(risk_cfg.get("max_daily_profit_usdc", 100)))
 
     if daily_pnl <= -max_loss:
         log.critical(
-            f"CIRCUIT BREAKER TRIGGERED: daily_pnl={daily_pnl} USDC "
-            f"exceeds limit={max_loss} USDC"
+            f"CIRCUIT BREAKER TRIGGERED (loss): daily_pnl={daily_pnl} USDC "
+            f"exceeds loss limit={max_loss} USDC"
         )
-        # Pause the bot so CommandListener and Strategy also stop sending new signals
         await redis.set("state.bot.status", "paused")
-        return False, f"circuit breaker active: daily_pnl={daily_pnl} USDC"
+        return False, f"circuit breaker active (daily loss): daily_pnl={daily_pnl} USDC"
+
+    if daily_pnl >= max_profit:
+        log.info(
+            f"DAILY PROFIT CAP REACHED: daily_pnl={daily_pnl} USDC "
+            f">= max_daily_profit_usdc={max_profit} USDC — locking in gains"
+        )
+        await redis.set("state.bot.status", "paused")
+        return False, f"daily profit cap reached: daily_pnl={daily_pnl} USDC"
 
     return True, ""
 

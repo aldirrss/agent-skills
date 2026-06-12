@@ -282,6 +282,7 @@ Full schema for `config.risk` Redis key (stored as JSON string):
   "max_wallet_pct":           0.10,
   "max_concurrent_positions": 5,
   "max_daily_loss_usdc":      200,
+  "max_daily_profit_usdc":    100,
   "max_hold_time_seconds":    3600,
   "min_liquidity_usdc":       30000,
   "min_viable_position_usdc": 5
@@ -302,7 +303,7 @@ RiskManager reads `config.risk` on every signal — hot reload is free.
 
 ```bash
 # Update base position size to 75 USDC without restarting the bot
-redis-cli SET config.risk '{"base_position_usdc": 75, "max_wallet_pct": 0.10, "max_concurrent_positions": 5, "max_daily_loss_usdc": 200, "max_hold_time_seconds": 3600, "min_liquidity_usdc": 30000, "min_viable_position_usdc": 5}'
+redis-cli SET config.risk '{"base_position_usdc": 75, "max_wallet_pct": 0.10, "max_concurrent_positions": 5, "max_daily_loss_usdc": 200, "max_daily_profit_usdc": 100, "max_hold_time_seconds": 3600, "min_liquidity_usdc": 30000, "min_viable_position_usdc": 5}'
 ```
 
 Changes take effect on the next signal processed — no restart required.

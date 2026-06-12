@@ -72,28 +72,32 @@ Gate 2 threshold: `final_score >= 80` → forward to `stream.agent.approved`.
 ## Key Pool
 
 All sub-agents use **litellm** — satu interface untuk semua provider. Setiap agent
-punya **satu provider** dan **3–5 API keys** yang rotate deterministik per token:
+punya **primary provider** + **fallback chain** (Provider A → B → C). Jika primary
+gagal atau timeout, fallback berikutnya dicoba secara otomatis.
 
 ```
-token_index % len(keys)  →  key assignment
-Token 1→Key1, Token 2→Key2, Token 3→Key3, Token 4→Key1, ...
+token_index % len(keys)  →  key assignment per provider
 ```
 
-**Engine tidak bisa jalan** jika key count < 3 per provider — divalidasi saat startup.
+**Engine tidak bisa jalan** jika primary provider < 3 keys — divalidasi saat startup.
+Fallback providers bersifat opsional.
 
-Default per-agent (free tier):
+Default chain per-agent (free tier):
 
-| Agent | Provider | Default Model |
-|---|---|---|
-| Market | Groq | `groq/llama-3.1-8b-instant` |
-| Safety | Groq | `groq/llama-3.1-8b-instant` |
-| Risk | Groq | `groq/llama-3.1-8b-instant` |
-| Social | Gemini | `gemini/gemini-2.0-flash` |
+| Agent | Primary | Fallback 1 | Fallback 2 |
+|---|---|---|---|
+| Market | Groq `llama-3.1-8b-instant` | OpenRouter `:free` | Gemini Flash |
+| Safety | Groq `llama-3.1-8b-instant` | OpenRouter `:free` | Gemini Flash |
+| Risk | Groq `llama-3.1-8b-instant` | OpenRouter `:free` | Gemini Flash |
+| Social | Gemini `gemini-2.0-flash` | Groq `llama-3.1-8b-instant` | OpenRouter `:free` |
 
-Minimum wajib di `.env`:
+Minimum wajib di `.env` (primary providers):
 ```
 GROQ_API_KEYS=gsk_1,gsk_2,gsk_3        # 3–5 keys, untuk market/safety/risk
 GEMINI_API_KEYS=AIza_1,AIza_2,AIza_3   # 3–5 keys, untuk social
+
+# Opsional — fallback jika primary exhausted/failed
+OPENROUTER_API_KEYS=sk-or-1,sk-or-2,sk-or-3
 ```
 
 ## Redis Keys Consumed

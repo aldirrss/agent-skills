@@ -175,12 +175,15 @@ R/R per tier: worst case (40% SL / 100% TP) = 2.5:1 — break-even ~29% win rate
 
 ## Agent Layer (GATE 2 Detail)
 
-| Sub-Agent | Provider | Model | Weight | Timeout | Focus |
+| Sub-Agent | Primary | Fallback Chain | Weight | Timeout | Focus |
 |---|---|---|---|---|---|
-| MarketAgent | Groq | llama-3.1-8b-instant | 25% | 5s | Narrative, volume, trend |
-| SafetyAgent | Groq | llama-3.1-8b-instant | 30% | 5s | Rug risk, holder concentration |
-| RiskAgent | Groq | llama-3.1-8b-instant | 25% | 5s | Liquidity depth, position size fit |
-| SocialAgent | Gemini | gemini-1.5-flash | 20% | 8s | Organic social vs manufactured hype |
+| MarketAgent | Groq `llama-3.1-8b-instant` | OpenRouter → Gemini | 25% | 5s | Narrative, volume, trend |
+| SafetyAgent | Groq `llama-3.1-8b-instant` | OpenRouter → Gemini | 30% | 5s | Rug risk, holder concentration |
+| RiskAgent | Groq `llama-3.1-8b-instant` | OpenRouter → Gemini | 25% | 5s | Liquidity depth, position size fit |
+| SocialAgent | Gemini `gemini-2.0-flash` | Groq → OpenRouter | 20% | 8s | Organic social vs manufactured hype |
+
+KeyPoolManager menyediakan `provider_chain_for_agent()` — setiap agent mencoba provider
+secara berurutan hingga sukses. Jika semua provider gagal, score sub-agent = 50 (fail-open).
 
 Response format: `SCORE: 75\nREASON: ...` (bukan JSON — small models tidak reliable JSON)
 

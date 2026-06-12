@@ -112,7 +112,7 @@ All checks run in order. First failure rejects the signal and ACKs the message.
 ```
 1. Position exists?         → reject BUY if state.position.{mint} exists
 2. Max concurrent?          → reject if len(state.position.*) >= MAX_CONCURRENT_POSITIONS
-3. Circuit breaker?         → reject if stats.daily_pnl <= -config.risk.max_daily_loss_usdc
+3. Circuit breaker?         → reject if daily_pnl ≤ -max_daily_loss_usdc (loss) OR ≥ max_daily_profit_usdc (profit cap) — sets bot status paused
 4. Bot status?              → reject if state.bot.status != "running"
 5. USDC balance?            → reject if wallet_usdc < minimum viable size
 6. SOL reserve?             → reject if SOL balance < MIN_SOL_RESERVE

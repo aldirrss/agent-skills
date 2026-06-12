@@ -34,10 +34,13 @@ Gunakan @web3-solana-agent references/key-pool.md.
 Buat components/key_pool.py.
 
 Constraint wajib:
-- Minimum 3 API keys per provider — raise ValueError di __init__ jika kurang
-- Engine tidak start jika KeyPoolManager gagal init
-- Rotasi round-robin: token_index % len(keys)
-- Baca dari settings: GROQ_API_KEYS, GEMINI_API_KEYS (comma-separated string)
+- Setiap agent punya primary provider + ordered fallback chain (lihat DEFAULT_AGENT_PROVIDER_CHAIN)
+- Minimum 3 keys hanya wajib untuk PRIMARY provider — raise ValueError di __init__ jika kurang
+- Fallback providers bersifat opsional — dilewati jika tidak ada keys
+- Rotasi round-robin per provider: token_index % len(keys)
+- Baca dari settings/env: GROQ_API_KEYS, GEMINI_API_KEYS, OPENROUTER_API_KEYS (comma-separated)
+- provider_chain_for_agent(agent_name) → list[list[ProviderKey]] (per provider, dalam urutan fallback)
+- primary_key_for_agent(agent_name, token_index) → ProviderKey (shortcut untuk primary saja)
 ```
 
 ---

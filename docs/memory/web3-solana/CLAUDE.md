@@ -53,7 +53,6 @@ SL_TIERS = [
     ( 10_000, Decimal("0.30")),
     (      0, Decimal("0.40")),
 ]
-MIN_VIABLE_POSITION_USDC = Decimal("5")
 ```
 
 **config.risk tidak boleh punya `stop_loss_pct` atau `take_profit_pct`.**
