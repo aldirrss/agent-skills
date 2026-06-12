@@ -99,8 +99,17 @@ calculated by RiskManager at approval time and forwarded via `stream.swaps` → 
 
 ## Relevant Skills
 
-Use `@[PROJECT_NAME]-architecture` for Redis topology and stream schema.
-Use `@[PROJECT_NAME]-risk` for TP/SL constants and position sizing.
-Use `@[PROJECT_NAME]-agent` for OrchestratorAgent and KeyPoolManager details.
-Use `@[PROJECT_NAME]-signal-aggregator` for GATE 1 logic.
-Use `@[PROJECT_NAME]` for all on-chain safety rules.
+| Skill | Use when building… |
+|---|---|
+| `@web3-solana` | Wallet management, Jupiter swaps, transaction signing, RPC calls, on-chain safety rules |
+| `@web3-solana-architecture` | Redis stream/pubsub schema, consumer groups, event flow, component topology |
+| `@web3-solana-engine` | Bot entry point, asyncio wiring, config/logging setup, keypair loading, task lifecycle |
+| `@web3-solana-scanner` | DEXScreener, GMGN, Pump.fun, Helius webhook, Rugcheck, KOL wallet tracking |
+| `@web3-solana-strategy` | 6 trading strategies, signal confluence, entry/exit rules, position monitoring loop |
+| `@web3-solana-signal-aggregator` | GATE 1 — multi-strategy match, composite score ranking, circuit breaker dispatch |
+| `@web3-solana-agent` | GATE 2 — OrchestratorAgent, 4 sub-agents, KeyPoolManager, LLM scoring, provider rotation |
+| `@web3-solana-risk` | RiskManager, safety gate, position sizing, TP/SL constants, circuit breaker |
+| `@web3-solana-execution` | Jupiter swap, solders signing, RPC submission, confirmation polling, stream.fills |
+| `@web3-solana-monitor` | Telegram/Discord alerts, heartbeat, daily PnL summary, win rate stats |
+| `@web3-solana-db-schema` | PostgreSQL schema, DBWriter, trade history, strategy performance queries |
+| `@web3-solana-dashboard` | Next.js dashboard, real-time WebSocket, candlestick charts, bot controls |
