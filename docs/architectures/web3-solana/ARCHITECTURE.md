@@ -78,10 +78,10 @@ and exposes a real-time web dashboard.
 │    per-mint asyncio.Lock · DRY_RUN passthrough                      │
 │    ↓ XADD stream.fills                                              │
 │                                                                     │
-│  PositionTracker ← stream.fills (fill-group)                        │
+│  PositionTracker ← stream.fills (tracker-group)                     │
 │    state.position.{mint} · PUBLISH position.updates                 │
 │                                                                     │
-│  DBWriter ← stream.fills (fill-group)                               │
+│  DBWriter ← stream.fills (db-group)                                 │
 │    INSERT trades · UPDATE pnl · rebuild strategy_stats nightly      │
 │                                                                     │
 │  CommandListener ← stream.commands (cmd-group)                      │
@@ -167,8 +167,8 @@ R/R per tier: worst case (40% SL / 100% TP) = 2.5:1 — break-even ~29% win rate
 | stream.agent.eligible | orchestrator-group | orchestrator-1 | OrchestratorAgent |
 | stream.agent.approved | risk-group | risk-manager-1 | RiskManager (BUY) |
 | stream.swaps | exec-group | execution-1 | Execution |
-| stream.fills | fill-group | position-tracker-1 | PositionTracker |
-| stream.fills | fill-group | db-writer-1 | DBWriter |
+| stream.fills | tracker-group | position-tracker-1 | PositionTracker |
+| stream.fills | db-group | db-writer-1 | DBWriter |
 | stream.commands | cmd-group | cmd-listener-1 | CommandListener |
 
 ---

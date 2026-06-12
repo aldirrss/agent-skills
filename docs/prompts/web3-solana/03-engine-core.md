@@ -90,7 +90,8 @@ Buat main.py di root solana-bot/ dengan startup sequence yang tepat:
       stream.agent.approved → risk-group
       stream.signals        → risk-sell-group  (SELL passthrough)
       stream.swaps          → exec-group
-      stream.fills          → fill-group
+      stream.fills          → tracker-group  (PositionTracker)
+      stream.fills          → db-group       (DBWriter — group terpisah agar keduanya terima semua fills)
       stream.commands       → cmd-group
 9.  Drain pending stream messages (crash recovery — replay XREADGROUP dengan "0")
 10. SET state.bot.status = "stopped"
@@ -135,7 +136,8 @@ async def ensure_consumer_groups(redis) -> None:
     stream.agent.eligible → orchestrator-group
     stream.agent.approved → risk-group
     stream.swaps          → exec-group
-    stream.fills          → fill-group
+    stream.fills          → tracker-group  (PositionTracker)
+    stream.fills          → db-group       (DBWriter — group terpisah agar keduanya terima semua fills)
     stream.commands       → cmd-group
   - Gunakan id="0" dan mkstream=True
   - Tangani exception "BUSYGROUP" (group sudah ada) — lanjut tanpa error

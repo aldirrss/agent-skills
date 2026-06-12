@@ -37,7 +37,8 @@ SELL path: `stream.signals` → RiskManager langsung (bypass GATE 1 & 2).
 | stream.agent.eligible | orchestrator-group | OrchestratorAgent |
 | stream.agent.approved | risk-group | RiskManager (BUY) |
 | stream.swaps | exec-group | Execution |
-| stream.fills | fill-group | PositionTracker + DBWriter |
+| stream.fills | tracker-group | PositionTracker |
+| stream.fills | db-group | DBWriter |
 | stream.commands | cmd-group | CommandListener |
 
 ---

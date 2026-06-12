@@ -74,7 +74,7 @@ Gunakan @web3-solana-engine references/position-tracker.md.
 Buat components/position_tracker.py:
 
 class PositionTracker:
-  - Consumer group: fill-group / position-tracker-1
+  - Consumer group: tracker-group / position-tracker-1
   - Baca dari stream.fills (XREADGROUP)
 
   Untuk fill dengan side=BUY, status=confirmed:
@@ -112,9 +112,9 @@ Gunakan @web3-solana-architecture untuk stream.fills schema.
 Buat components/db_writer.py:
 
 class DBWriter:
-  - Consumer group: fill-group / db-writer-1
-  - Baca dari stream.fills (XREADGROUP, SAMA dengan PositionTracker — keduanya
-    punya consumer yang berbeda dalam group yang sama)
+  - Consumer group: db-group / db-writer-1  (group TERPISAH dari PositionTracker)
+  - Baca dari stream.fills (XREADGROUP — db-group dan tracker-group masing-masing
+    terima semua fills secara independen)
   - Subscribe ke scanner.safety.rejected (pub/sub)
 
   Untuk stream.fills:
