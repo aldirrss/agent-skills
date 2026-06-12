@@ -178,9 +178,6 @@ Published by **PositionTracker** after every fill or PnL update.
 |---|---|---|---|---|
 | `state.bot.status` | String | none | CommandListener | `running` / `paused` / `stopped` |
 | `state.bot.tokens` | Set | none | CommandListener | Active mint addresses being tracked |
-| `state.circuit_breaker` | String | none | RiskManager | `open` / `closed` |
-| `state.daily_loss_pct` | String | none | RiskManager | Accumulated daily loss % (float) |
-| `state.open_positions_count` | String | none | PositionTracker | Current open position count (int) |
 | `state.kol.wallets` | Set | none | CommandListener | KOL wallet addresses to track |
 | `config.strategy` | String (JSON) | none | CommandListener | Strategy parameters |
 | `config.risk` | String (JSON) | none | CommandListener | Risk parameters |
@@ -189,7 +186,8 @@ Published by **PositionTracker** after every fill or PnL update.
 
 | Key | Type | TTL | Written by | Description |
 |---|---|---|---|---|
-| `state.position.{mint}` | String (JSON) | none | PositionTracker | Current open position |
+| `state.position.{mint}` | String (JSON) | none | PositionTracker | Current open position (set after fill confirmed) |
+| `state.position.inflight.{mint}` | String | 120 s | RiskManager | Set before XADD stream.swaps; cleared by PositionTracker on fill; TTL guards against crash |
 | `state.price.{mint}` | String (JSON) | 60 s | Scanner | Latest price, market cap, volume, liquidity, 1h change |
 | `state.token.{mint}` | String (JSON) | 300 s | Scanner | Token metadata: holder_count, age_minutes |
 | `state.safety.{mint}` | String (JSON) | 300 s | Scanner | Safety data: rugcheck_score, is_honeypot, liquidity_locked, top_holder_pct |

@@ -37,17 +37,19 @@ class RiskManager:
   - SELL path: consumer group risk-sell-group / risk-manager-1 pada stream.signals
 
   Safety gate sequence (BUY) — urutan penting, stop di failure pertama:
-    1. Cek state.position.{mint} → reject jika sudah ada posisi
-    2. Hitung concurrent positions (len SMEMBERS state.bot.tokens) → reject jika >= MAX
-    3. Cek stats.daily_pnl: ≤ -max_daily_loss_usdc (loss) ATAU ≥ max_daily_profit_usdc (profit cap) → pause bot, reject signal
-    4. Cek state.bot.status == "running" → reject jika tidak
-    5. Hitung wallet USDC balance (dari state.wallet.usdc_balance di Redis)
-    6. Cek SOL reserve >= MIN_SOL_RESERVE
-    7. Kalkulasi position size: final_score/100 × multiplier × wallet_usdc,
+    1. Cek state.position.inflight.{mint} → reject jika ada (swap dikirim tapi fill belum tiba — menutup race window ~30s)
+    2. Cek state.position.{mint} → reject jika sudah ada posisi
+    3. Hitung concurrent positions via redis.keys("state.position.*") → reject jika >= MAX
+    4. Cek stats.daily_pnl: ≤ -max_daily_loss_usdc (loss) ATAU ≥ max_daily_profit_usdc (profit cap) → pause bot, reject signal
+    5. Cek state.bot.status == "running" → reject jika tidak
+    6. Hitung wallet USDC balance (dari state.wallet.usdc_balance di Redis)
+    7. Cek SOL reserve >= MIN_SOL_RESERVE
+    8. Kalkulasi position size: final_score/100 × multiplier × wallet_usdc,
        capped MAX_POSITION_USDC, minimum MIN_VIABLE_POSITION_USDC
-    8. Reject jika final size < config.risk.min_viable_position_usdc
+    9. Reject jika final size < config.risk.min_viable_position_usdc
 
   Setelah gate pass (BUY):
+    - SET state.position.inflight.{mint} = "1" EX 120  ← WAJIB sebelum XADD
     - Derive slippage dari liquidity_usdc
     - Hitung stop_loss_price via calculate_stop_loss_price(entry_price, liquidity_usdc)
     - Hitung take_profit_price = entry_price * (1 + TAKE_PROFIT_PCT)

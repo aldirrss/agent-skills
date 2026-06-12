@@ -50,6 +50,10 @@ class PositionTracker:
 
         if status != "confirmed":
             self.log.debug(f"Fill ignored (status={status}): {mint[:8]}")
+            # Clear inflight lock on failed/timeout BUY so RiskManager can retry the mint.
+            # TTL=120s is the safety net, but explicit delete is faster.
+            if side == "BUY" and mint:
+                await self.redis.delete(f"state.position.inflight.{mint}")
             return
 
         if side == "BUY":
@@ -78,6 +82,8 @@ class PositionTracker:
             "fill_id":           fill.get("fill_id", ""),
         }
         await self.redis.set(f"state.position.{mint}", json.dumps(position))
+        # Inflight lock served its purpose — position is now confirmed in Redis.
+        await self.redis.delete(f"state.position.inflight.{mint}")
         await self.redis.sadd("state.bot.tokens", mint)
 
         await self.redis.publish("position.updates", json.dumps({

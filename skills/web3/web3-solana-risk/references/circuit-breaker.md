@@ -7,7 +7,8 @@ All safety checks that RiskManager runs before approving a BUY signal. Each chec
 | Key | Type | Set by | Description |
 |---|---|---|---|
 | `stats.daily_pnl` | String (Decimal) | DBWriter | Cumulative realized PnL today in USDC |
-| `state.position.*` | String (JSON) | PositionTracker | One key per open position |
+| `state.position.{mint}` | String (JSON) | PositionTracker | Open position data (set ~30s after approval) |
+| `state.position.inflight.{mint}` | String | RiskManager | Set atomically before XADD stream.swaps; cleared by PositionTracker on fill; TTL 120s fallback |
 | `state.bot.status` | String | CommandListener | `"running"` \| `"paused"` \| `"stopped"` |
 | `state.wallet.usdc_balance` | String (Decimal) | PositionTracker | Live wallet USDC balance |
 | `state.wallet.sol_balance` | String (Decimal) | PositionTracker | Live wallet SOL balance |
@@ -26,6 +27,24 @@ log = logger.bind(component="risk_manager")
 # Code constants — these cannot be changed via config
 MAX_CONCURRENT_POSITIONS = 5
 MIN_SOL_RESERVE          = Decimal("0.05")   # SOL kept for transaction fees
+
+
+async def check_no_inflight_position(redis, mint: str) -> tuple[bool, str]:
+    """
+    Reject BUY if this mint is already in-flight (approved but not yet filled).
+
+    RiskManager sets state.position.inflight.{mint} atomically before publishing
+    to stream.swaps. PositionTracker clears it on fill confirmed/failed/timeout.
+    TTL=120s ensures the key auto-expires if the bot crashes before the fill arrives,
+    so the mint is never permanently locked.
+
+    This closes the ~30s race window between RiskManager approval and
+    PositionTracker writing state.position.{mint} after fill confirmation.
+    """
+    exists = await redis.exists(f"state.position.inflight.{mint}")
+    if exists:
+        return False, f"position inflight (swap not yet filled) for mint={mint[:8]}..."
+    return True, ""
 
 
 async def check_no_existing_position(redis, mint: str) -> tuple[bool, str]:
@@ -149,6 +168,7 @@ async def safety_gate(redis, mint: str, risk_cfg: dict) -> tuple[bool, str]:
             return
     """
     checks = [
+        check_no_inflight_position(redis, mint),
         check_no_existing_position(redis, mint),
         check_max_concurrent_positions(redis),
         check_circuit_breaker(redis, risk_cfg),
@@ -176,6 +196,11 @@ async def _handle_buy(self, msg_id, data, mint, strategy):
         self.log.debug(f"BUY rejected [{data.get('symbol', mint[:8])}]: {reason}")
         await self.redis.xack("stream.agent.approved", self.GROUP, msg_id)
         return
+
+    # Mark this mint as inflight BEFORE publishing to stream.swaps.
+    # TTL=120s is the fallback if the bot crashes before the fill arrives —
+    # PositionTracker will clear it explicitly on confirmed/failed/timeout fills.
+    await self.redis.set(f"state.position.inflight.{mint}", "1", ex=120)
 
     # ... proceed to position sizing and publish swap
 ```
