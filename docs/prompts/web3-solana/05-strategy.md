@@ -73,14 +73,12 @@ async def publish_buy_signal(
   mint: str, symbol: str, strategy: str,
   confidence: int, liquidity_usdc: float,
   sources: list[str], redis: Redis,
-  agent_enabled: bool = False,
 ) -> str:
   - Buat signal_id: f"sig_{uuid4().hex[:12]}"
-  - Jika agent_enabled: XADD stream.signals.raw
-  - Jika tidak: XADD stream.signals
+  - XADD stream.signals (selalu — SignalAggregator yang handle routing ke GATE 1)
   - Return signal_id
 
-Schema stream.signals / stream.signals.raw:
+Schema stream.signals BUY:
   signal_id, mint, symbol, action="BUY", strategy, confidence (str),
   liquidity_usdc (str), sources (JSON list), ts (epoch ms str)
 ```

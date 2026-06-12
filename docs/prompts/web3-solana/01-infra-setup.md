@@ -100,10 +100,9 @@ TELEGRAM_BOT_TOKEN=          # dari @BotFather
 TELEGRAM_CHAT_ID=
 DISCORD_WEBHOOK_URL=         # opsional
 
-# === AGENT LAYER (opsional) ===
-AGENT_ENABLED=false
-ANTHROPIC_API_KEY=           # hanya dipakai jika AGENT_ENABLED=true
-AGENT_MODEL=claude-haiku-4-5
+# === AGENT LAYER (litellm multi-provider, wajib min 3 keys per provider) ===
+GROQ_API_KEYS=key1,key2,key3        # market / safety / risk agents — groq.com
+GEMINI_API_KEYS=key1,key2,key3      # social agent — aistudio.google.com
 
 # === RISK CONFIG ===
 MAX_POSITION_USDC=500        # hard ceiling per trade — code constant, ini hanya dokumentasi

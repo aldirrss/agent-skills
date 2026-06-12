@@ -1,150 +1,102 @@
-# Fase 07 — Agent Layer / LLM Scoring (Layer 2, Opsional)
+# Fase 07 — SignalAggregator (GATE 1) + OrchestratorAgent (GATE 2)
 
-Tujuan: AgentConfirmer sebagai LLM scoring layer antara Strategy dan RiskManager.
-Aktif hanya jika AGENT_ENABLED=true. Default: disabled.
-Prasyarat: Fase 05-06 selesai — stream.signals.raw dan stream.signals sudah ada.
+Tujuan: Dua gate wajib antara Strategy dan RiskManager.
+- **GATE 1** (SignalAggregator): composite scoring, top-15 batch dispatch, circuit breaker
+- **GATE 2** (OrchestratorAgent): 4 LLM sub-agents parallel via litellm, score ≥ 80
+
+Prasyarat: Fase 05-06 selesai — stream.signals sudah aktif.
 
 ---
 
-## Prompt 7.1 — AgentConfirmer core
+## Prompt 7.1 — SignalAggregator
 
 ```
-Gunakan @web3-solana-agent secara lengkap, termasuk semua references/.
-Gunakan @web3-solana-architecture untuk stream routing (signals.raw → signals).
+Gunakan @web3-solana-signal-aggregator secara lengkap, termasuk references/signal-aggregator.md.
 
-Prinsip utama sebelum mulai:
-- AGENT_ENABLED=false adalah default. Bot harus berfungsi penuh tanpa agent.
-- Fail open: jika Claude timeout atau error, signal pass through dengan confidence original.
-- SELL signals bypass LLM sepenuhnya — exit harus cepat.
-- LLM hanya menyumbang 30% dari confidence final.
+Buat components/signal_aggregator.py.
 
-Buat components/agent_confirmer.py:
-
-class AgentConfirmer:
-  - Consumer group: agent-group / agent-confirmer-1
-  - Baca dari stream.signals.raw
-  - Output ke stream.signals (sama dengan output Strategy jika agent disabled)
-
-  Untuk BUY signal:
-    1. Cek cache: GET llm.score.{mint} (TTL 300s)
-       Jika hit → gunakan cached score, skip LLM call
-    2. Jika cache miss:
-       a. Hitung prompt hash dari: mint + strategy + signal_sources + price_bucket + liquidity_bucket
-       b. Cek llm.cache.{hash} (TTL 600s) — deduplicate identical prompts
-       c. Jika cache miss: panggil Claude dengan timeout sesuai strategy
-          AGENT_TIMEOUTS: new_launch_snipe=2s, kol_copy_trade=5s, lainnya=8s
-       d. Parse response → float score 0.0-1.0
-       e. Simpan ke llm.score.{mint} (TTL 300s) dan llm.cache.{hash} (TTL 600s)
-    3. Kalkulasi: final_confidence = original_confidence * 0.7 + llm_score * 100 * 0.3
-    4. Re-publish ke stream.signals dengan:
-       - confidence = str(int(final_confidence))
-       - llm_scored = "true"
-       - llm_score = str(llm_score)
-
-  Untuk SELL signal:
-    - Pass through langsung ke stream.signals tanpa LLM call
-    - Tambahkan llm_scored = "false"
-
-  Jika LLM error/timeout:
-    - Log warning dengan error message
-    - Pass through dengan confidence original, llm_scored="false"
-    - JANGAN drop signal atau raise exception
-
-  XACK stream.signals.raw setelah setiap message.
+Poin kunci:
+- Consumer group: aggregator-group / aggregator-1 pada stream.signals
+- Track match per mint via signal.match.{mint} (Hash, TTL 900s)
+- Gate: minimal 2 strategy match dengan window per strategy sesuai skill
+- Ranking top-15: score = match_count×30 + strategy_weight_bonus + recency_bonus
+- Cek circuit breaker sebelum dispatch
+- Output: XADD stream.agent.eligible { batch_id, mints: JSON list }
 ```
 
 ---
 
-## Prompt 7.2 — Prompt design untuk scoring
+## Prompt 7.2 — KeyPoolManager
 
 ```
-Gunakan @web3-solana-agent references/prompt-design.md.
-Gunakan @claude-api untuk implementasi Anthropic SDK dengan prompt caching.
+Gunakan @web3-solana-agent references/key-pool.md.
 
-Buat components/agent_prompts.py:
+Buat components/key_pool.py.
 
-SYSTEM_PROMPT = """
-Kamu adalah AI analyst untuk Solana DEX trading bot. Tugasmu mengevaluasi
-kualitas sinyal trading berdasarkan data yang diberikan dan memberikan skor
-0.0 sampai 1.0.
-
-Skor 0.0 = sangat berisiko / kemungkinan scam atau rug pull
-Skor 0.5 = sinyal netral, tidak ada tanda bahaya jelas
-Skor 1.0 = sinyal sangat kuat dengan multiple konfirmasi berkualitas
-
-Faktor yang dievaluasi:
-1. Narrative strength: adakah cerita nyata di balik token ini?
-2. Social signal quality: organik (wallet activity, on-chain) atau dibuat-buat (Telegram call saja)?
-3. Red flags: liquidity tipis, holder konsentrasi, KOL tanpa wallet backing?
-
-Respons HANYA dengan JSON: {"score": 0.0} — tidak ada teks lain.
-"""
-
-def build_scoring_prompt(signal_data: dict) -> str:
-  - Buat user prompt dari signal_data:
-    Token: {symbol} ({mint[:8]}...)
-    Strategy: {strategy}
-    Confidence pre-LLM: {confidence}
-    Signal sources: {sources}
-    Liquidity: ${liquidity_usdc:,.0f}
-    Signal age: {age_seconds}s
-
-Buat components/agent_client.py:
-
-class AgentClient:
-  - __init__(self, settings)
-  - Gunakan anthropic.AsyncAnthropic
-  - System prompt dengan cache_control untuk prompt caching (~90% token savings)
-
-  async def score_signal(self, signal_data: dict, timeout_s: float) -> float:
-    - Buat prompt menggunakan build_scoring_prompt
-    - Call claude-haiku-4-5 (atau AGENT_MODEL dari config)
-    - max_tokens = 30 (response tiny: {"score": 0.7})
-    - Parse JSON response → extract "score" field
-    - Clamp ke 0.0-1.0
-    - Jika parsing gagal: return 0.5 (netral — fail safe)
-    - Timeout: asyncio.wait_for dengan timeout_s dari AGENT_TIMEOUTS
-
-  Gunakan prompt caching dengan cache_control pada system prompt:
-  messages=[{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-  system=[{"type": "text", "text": SYSTEM_PROMPT,
-           "cache_control": {"type": "ephemeral"}}]
+Constraint wajib:
+- Minimum 3 API keys per provider — raise ValueError di __init__ jika kurang
+- Engine tidak start jika KeyPoolManager gagal init
+- Rotasi round-robin: token_index % len(keys)
+- Baca dari settings: GROQ_API_KEYS, GEMINI_API_KEYS (comma-separated string)
 ```
 
 ---
 
-## Prompt 7.3 — Integrasi ke engine
+## Prompt 7.3 — OrchestratorAgent + 4 sub-agents
+
+```
+Gunakan @web3-solana-agent secara lengkap, termasuk:
+  references/types.md, references/orchestrator.md,
+  references/sub-agents.md, references/prompt-design.md.
+
+Buat:
+  components/agents/types.py         ← AgentScore, TokenContext
+  components/agents/base.py          ← BaseAgent abstract class
+  components/agents/market.py
+  components/agents/safety.py
+  components/agents/risk.py
+  components/agents/social.py
+  components/orchestrator_agent.py
+
+Poin kunci:
+- Consumer group: orchestrator-group / orchestrator-1 pada stream.agent.eligible
+- 4 sub-agents dijalankan parallel via asyncio.gather
+- AGENT_WEIGHTS = {market: 0.25, safety: 0.30, risk: 0.25, social: 0.20}
+- Gate threshold: final_score ≥ 80 → XADD stream.agent.approved
+- Provider: Groq untuk market/safety/risk, Gemini Flash untuk social (via litellm)
+- Response format: SCORE:/REASON: (plain text, bukan JSON)
+- Fail-open: agent timeout/error → score sub-agent = 50 (netral), tetap lanjut
+```
+
+---
+
+## Prompt 7.4 — Integrasi ke engine
 
 ```
 Gunakan @web3-solana-agent references/integration.md.
 
-Update main.py untuk support agent layer:
+Update main.py dan components/redis_helpers.py:
 
-1. Baca AGENT_ENABLED dari settings
-2. Jika AGENT_ENABLED=true:
-   - Instansiasi AgentClient(settings)
-   - Instansiasi AgentConfirmer(redis, agent_client, settings)
-   - Spawn sebagai named task: "agent.confirmer"
-   - Strategy publish ke stream.signals.raw (bukan stream.signals langsung)
-   - AgentConfirmer forward ke stream.signals setelah scoring
+1. ensure_consumer_groups — ganti/tambah:
+   stream.signals        → aggregator-group   (ganti risk-group yang lama)
+   stream.agent.eligible → orchestrator-group
+   stream.agent.approved → risk-group
 
-3. Jika AGENT_ENABLED=false (default):
-   - Strategy publish langsung ke stream.signals
-   - stream.signals.raw tidak digunakan
+2. Startup sequence:
+   - Instansiasi KeyPoolManager(settings) sebelum komponen lain
+     → bot berhenti di sini jika < 3 keys per provider
+   - Instansiasi SignalAggregator(redis, settings)
+   - Instansiasi OrchestratorAgent(redis, key_pool, settings)
+   - Spawn sebagai named tasks: "signal.aggregator", "agent.orchestrator"
 
-Perubahan di components/strategy/confluence.py → publish_buy_signal():
-  - Terima parameter agent_enabled: bool
-  - Jika True: XADD stream.signals.raw
-  - Jika False: XADD stream.signals
+3. Shutdown sequence — tambahkan setelah Scanner+Strategy stop:
+   - Wait SignalAggregator drain (max 5s)
+   - Wait OrchestratorAgent selesai batch LLM aktif (max 60s)
 
-Tambahkan ke .env.example:
-  AGENT_ENABLED=false
-  ANTHROPIC_API_KEY=    # hanya dibutuhkan jika AGENT_ENABLED=true
-  AGENT_MODEL=claude-haiku-4-5  # fastest/cheapest untuk scoring
-
-Catatan di komentar kode:
-  "AgentConfirmer hanya enrichment — tidak pernah memblokir trading.
-   Timeout atau error = signal pass through dengan confidence original."
+Update .env.example — ganti section AGENT LAYER:
+  # === AGENT LAYER (litellm multi-provider, wajib min 3 keys per provider) ===
+  GROQ_API_KEYS=key1,key2,key3        # market / safety / risk agents
+  GEMINI_API_KEYS=key1,key2,key3      # social agent
 ```
 
 ---
@@ -153,9 +105,12 @@ Catatan di komentar kode:
 
 Selesai? Tandai progress:
 
-- [ ] components/agent_confirmer.py — BUY scoring, SELL passthrough, fail-open
-- [ ] components/agent_prompts.py — system prompt, build_scoring_prompt
-- [ ] components/agent_client.py — Anthropic SDK dengan prompt caching
-- [ ] main.py diupdate — routing stream berdasarkan AGENT_ENABLED
-- [ ] Test: AGENT_ENABLED=false → bot berjalan normal tanpa agent
-- [ ] Test: AGENT_ENABLED=true dengan API key valid → score muncul di logs
+- [ ] components/signal_aggregator.py — aggregator-group, ranking top-15, dispatch batch
+- [ ] components/key_pool.py — round-robin, fail-fast min 3 keys
+- [ ] components/agents/types.py — AgentScore, TokenContext
+- [ ] components/agents/base.py, market.py, safety.py, risk.py, social.py
+- [ ] components/orchestrator_agent.py — 4 parallel agents, gate ≥ 80
+- [ ] main.py + redis_helpers.py diupdate — consumer groups benar, wiring kedua GATE
+- [ ] .env.example diupdate — GROQ_API_KEYS, GEMINI_API_KEYS
+- [ ] Test: inject ke stream.signals → muncul di stream.agent.approved jika score ≥ 80
+- [ ] Test: GROQ_API_KEYS hanya 2 key → bot tidak start, ValueError jelas

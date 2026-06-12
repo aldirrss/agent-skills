@@ -24,9 +24,8 @@ Buat dua file berikut di root solana-bot/:
      TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
      TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
      DISCORD_WEBHOOK_URL (optional, default "")
-     AGENT_ENABLED (bool, default False)
-     ANTHROPIC_API_KEY (optional, default "")
-     AGENT_MODEL (default "claude-haiku-4-5")
+     GROQ_API_KEYS (comma-separated, min 3)
+     GEMINI_API_KEYS (comma-separated, min 3)
      LOG_LEVEL (default "INFO")
    - Fail fast pada startup jika variabel wajib tidak ada (WALLET_KEYPAIR_B64,
      RPC_PRIMARY_URL, REDIS_URL, DATABASE_URL)
@@ -86,7 +85,13 @@ Buat main.py di root solana-bot/ dengan startup sequence yang tepat:
 6.  Jalankan db/migrate.py — run_migrations(pool)
 7.  Create aiohttp.ClientSession (shared, satu instance)
 8.  ensure_consumer_groups() — XGROUP CREATE idempotent untuk:
-      stream.signals, stream.signals.raw, stream.swaps, stream.fills, stream.commands
+      stream.signals        → aggregator-group
+      stream.agent.eligible → orchestrator-group
+      stream.agent.approved → risk-group
+      stream.signals        → risk-sell-group  (SELL passthrough)
+      stream.swaps          → exec-group
+      stream.fills          → fill-group
+      stream.commands       → cmd-group
 9.  Drain pending stream messages (crash recovery — replay XREADGROUP dengan "0")
 10. SET state.bot.status = "stopped"
 11. Register SIGTERM/SIGINT handler → set global stop_event
@@ -125,11 +130,13 @@ Buat components/redis_helpers.py:
 
 async def ensure_consumer_groups(redis) -> None:
   - XGROUP CREATE untuk semua streams yang dibutuhkan:
-    stream.signals     → group: risk-group
-    stream.signals.raw → group: agent-group  (untuk AgentConfirmer)
-    stream.swaps       → group: exec-group
-    stream.fills       → group: fill-group
-    stream.commands    → group: cmd-group
+    stream.signals        → aggregator-group
+    stream.signals        → risk-sell-group   (SELL passthrough ke RiskManager)
+    stream.agent.eligible → orchestrator-group
+    stream.agent.approved → risk-group
+    stream.swaps          → exec-group
+    stream.fills          → fill-group
+    stream.commands       → cmd-group
   - Gunakan id="0" dan mkstream=True
   - Tangani exception "BUSYGROUP" (group sudah ada) — lanjut tanpa error
   - Log tiap group yang dibuat atau sudah ada

@@ -9,14 +9,14 @@ jangan loncat fase.
 ```
 Scanner (10 sources: Helius webhook + 9 pollers)
     ↓ pub/sub: scanner.token.new / scanner.token.trending / scanner.wallet.buy
-Strategy — pre-filter: anchor signal present per strategi?
-    ↓ confluence engine: SIGNAL_WEIGHTS + MIN_CONFIDENCE_SCORE (Layer 1 scoring)
-    ↓ stream.signals.raw  [jika AGENT_ENABLED=true]
-AgentConfirmer — LLM scoring (Layer 2, opsional)
-    ↓ final_confidence = original×0.7 + llm_score×0.3
-    ↓ stream.signals
-RiskManager — safety gate (position limit, circuit breaker, SOL reserve)
-    ↓ stream.swaps [Redis Stream]
+Strategy — pre-filter: anchor signal present? confluence score cukup?
+    ↓ stream.signals  [aggregator-group]
+SignalAggregator — GATE 1: min 2 match, top-15 ranking, circuit breaker
+    ↓ stream.agent.eligible  [orchestrator-group]
+OrchestratorAgent — GATE 2: 4 LLM sub-agents parallel, score ≥ 80
+    ↓ stream.agent.approved  [risk-group]
+RiskManager — safety gate: position limit, circuit breaker, SOL reserve, SL/TP calc
+    ↓ stream.swaps
 Execution — Jupiter V6 quote → sign → send → confirm
     ↓ stream.fills
 PositionTracker + DBWriter
@@ -38,10 +38,14 @@ PositionTracker + DBWriter
 03-engine-core.md       → main.py, config.py, logger_setup.py, startup/shutdown
 04-scanner.md           → Scanner (10 sources, dedup, signal normalization)
 05-strategy.md          → Strategy (SignalBuffer, 6 strategi, confluence engine)
-06-risk-execution.md    → RiskManager (safety gate) + Execution (Jupiter swap)
-07-agent-layer.md       → AgentConfirmer (LLM Layer 2, opsional)
+06-risk-execution.md    → RiskManager + PositionTracker + Execution (Jupiter swap)
+07-agent-layer.md       → SignalAggregator (GATE 1) + OrchestratorAgent (GATE 2)
 08-monitor.md           → Monitor (Telegram, heartbeat, metrics, daily report)
+09-dashboard.md         → FastAPI bridge server + Next.js frontend
 ```
+
+> **Catatan urutan:** 07 (agent layer) harus selesai sebelum 06 (risk) karena
+> RiskManager membaca dari stream.agent.approved yang dihasilkan oleh GATE 2.
 
 ## Skill yang Digunakan
 
@@ -55,8 +59,10 @@ PositionTracker + DBWriter
 | `@web3-solana-strategy` | 05 — 6 strategi, confluence model, position monitor |
 | `@web3-solana-risk` | 06 — safety gate, position sizing, slippage tiers |
 | `@web3-solana-execution` | 06 — Jupiter flow, signing, confirmation, error handling |
-| `@web3-solana-agent` | 07 — AgentConfirmer, LLM scoring, fail-open design |
+| `@web3-solana-signal-aggregator` | 07 — GATE 1: composite scoring, top-15 dispatch |
+| `@web3-solana-agent` | 07 — GATE 2: OrchestratorAgent, 4 sub-agents, KeyPoolManager |
 | `@web3-solana-monitor` | 08 — Telegram alerts, heartbeat, stats, daily report |
+| `@web3-solana-dashboard` | 09 — FastAPI bridge + Next.js frontend |
 
 ## Tips
 
@@ -97,13 +103,28 @@ solana-bot/
 │   │   ├── smart_money.py
 │   │   ├── social_alpha.py
 │   │   └── position_monitor.py
+│   ├── signal_aggregator.py
+│   ├── orchestrator_agent.py
+│   ├── key_pool.py
+│   ├── agents/
+│   │   ├── types.py
+│   │   ├── base.py
+│   │   ├── market.py
+│   │   ├── safety.py
+│   │   ├── risk.py
+│   │   └── social.py
 │   ├── risk_manager.py
-│   ├── execution.py
+│   ├── execution/
+│   │   ├── jupiter.py
+│   │   └── execution.py
 │   ├── position_tracker.py
 │   ├── db_writer.py
 │   ├── command_listener.py
-│   ├── agent_confirmer.py
-│   └── monitor.py
+│   └── monitor/
+│       ├── monitor.py
+│       ├── telegram_alerter.py
+│       ├── health.py
+│       └── stats.py
 ├── db/
 │   └── migrations/
 │       └── migration_001_initial.sql

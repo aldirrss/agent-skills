@@ -2,7 +2,7 @@
 
 Tujuan: RiskManager sebagai safety gate antara signal dan swap, plus Execution
 sebagai satu-satunya komponen yang memegang keypair dan memanggil Jupiter.
-Prasyarat: Fase 03-05 selesai.
+Prasyarat: Fase 03-05 dan 07 selesai — stream.agent.approved sudah aktif.
 
 ---
 
@@ -18,6 +18,9 @@ Hard-coded constants (BUKAN config — tidak bisa di-override):
   MAX_POSITION_USDC        = Decimal("500")
   MAX_CONCURRENT_POSITIONS = 5
   MIN_SOL_RESERVE          = Decimal("0.05")
+  MIN_VIABLE_POSITION_USDC = Decimal("5")
+  TAKE_PROFIT_PCT          = Decimal("1.0")   # 2× entry
+  SL_TIERS: ≥500k→15%, ≥50k→20%, ≥10k→30%, <10k→40%  (lihat @web3-solana-risk references/position-sizing.md)
 
 Per-strategy size multipliers (dari skill):
   kol_copy_trade: 1.0, graduation_trade: 1.0, smart_money_confluence: 1.0,
@@ -28,8 +31,8 @@ Slippage tiers berdasarkan liquidity_usdc:
   < 10000: 500bps, emergency SELL: 1000bps
 
 class RiskManager:
-  - Consumer group: risk-group / risk-manager-1
-  - Baca dari stream.signals (XREADGROUP)
+  - BUY path:  consumer group risk-group / risk-manager-1 pada stream.agent.approved
+  - SELL path: consumer group risk-sell-group / risk-manager-1 pada stream.signals
 
   Safety gate sequence (BUY) — urutan penting, stop di failure pertama:
     1. Cek state.position.{mint} → reject jika sudah ada posisi
@@ -38,22 +41,23 @@ class RiskManager:
     4. Cek state.bot.status == "running" → reject jika tidak
     5. Hitung wallet USDC balance (dari state.wallet.usdc_balance di Redis)
     6. Cek SOL reserve >= MIN_SOL_RESERVE
-    7. Kalkulasi position size: base = wallet_usdc * 0.1, dikali multiplier, capped MAX_POSITION_USDC
-    8. Reject jika final size <= 0
+    7. Kalkulasi position size: final_score/100 × multiplier × wallet_usdc,
+       capped MAX_POSITION_USDC, minimum MIN_VIABLE_POSITION_USDC
+    8. Reject jika final size < MIN_VIABLE_POSITION_USDC
 
   Setelah gate pass (BUY):
     - Derive slippage dari liquidity_usdc
-    - Hitung stop_loss_price = entry_price * (1 - stop_loss_pct) dari config.risk
-    - Hitung take_profit_price = entry_price * (1 + take_profit_pct) dari config.risk
+    - Hitung stop_loss_price via calculate_stop_loss_price(entry_price, liquidity_usdc)
+    - Hitung take_profit_price = entry_price * (1 + TAKE_PROFIT_PCT)
     - XADD stream.swaps dengan schema lengkap (lihat skill)
-    - XACK stream.signals
+    - XACK stream.agent.approved
 
   SELL signals: bypass safety gate (exit tidak boleh diblokir)
     - Hanya derive slippage (emergency: 1000bps untuk stop_loss/emergency_stop)
     - XADD stream.swaps langsung
     - XACK stream.signals
 
-  Jika reject: log reason, XACK stream.signals, lanjut ke signal berikutnya.
+  Jika reject: log reason, XACK stream.agent.approved, lanjut ke signal berikutnya.
   Jangan crash — rejection adalah flow normal, bukan error.
 ```
 
