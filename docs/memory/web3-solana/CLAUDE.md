@@ -1,21 +1,21 @@
-# Solana DEX Trading Bot — Claude Code Rules
+# [PROJECT_NAME] — Claude Code Rules
 
-Baca file ini sebelum menulis kode apapun untuk proyek ini.
+Read this file before writing any code for this project.
 
 ---
 
 ## Non-Negotiable Safety Rules
 
-1. **Private key tidak pernah keluar dari `Execution`** — Keypair hanya di `__init__` Execution,
-   tidak pernah di-pass ke komponen lain, tidak pernah di-log, tidak pernah di-serialize
-2. **DRY_RUN=true default** — setiap kode baru harus bisa jalan tanpa transaksi nyata
-3. **Slippage wajib non-zero** — tidak ada swap tanpa `slippage_bps` eksplisit
-4. **Cek on-chain sebelum retry** — jangan kirim ulang transaksi tanpa verifikasi on-chain
-5. **Semua amounts monetary = Decimal** — bukan float, kecuali data inbound dari API
+1. **Private keys never leave `Execution`** — Keypair only in `__init__` of Execution,
+   never passed to other components, never logged, never serialized
+2. **DRY_RUN=true default** — every new code path must work without real transactions
+3. **Slippage must be non-zero** — no swap without an explicit `slippage_bps`
+4. **Verify on-chain before retry** — never resend a transaction without on-chain confirmation
+5. **All monetary amounts = Decimal** — no floats, except inbound data from external APIs
 
 ---
 
-## Pipeline (urutan wajib, tidak boleh diubah)
+## Pipeline (mandatory order — do not change)
 
 ```
 stream.signals → SignalAggregator (GATE 1) → stream.agent.eligible
@@ -24,13 +24,13 @@ stream.signals → SignalAggregator (GATE 1) → stream.agent.eligible
              → Execution                  → stream.fills
 ```
 
-SELL path: `stream.signals` → RiskManager langsung (bypass GATE 1 & 2).
+SELL path: `stream.signals` → RiskManager directly (bypasses GATE 1 & 2).
 
 ---
 
-## Consumer Groups (jangan diubah)
+## Consumer Groups (do not change)
 
-| Stream | Group | Komponen |
+| Stream | Group | Component |
 |---|---|---|
 | stream.signals | aggregator-group | SignalAggregator |
 | stream.signals | risk-sell-group | RiskManager (SELL only) |
@@ -43,10 +43,10 @@ SELL path: `stream.signals` → RiskManager langsung (bypass GATE 1 & 2).
 
 ---
 
-## TP/SL Code Constants (tidak boleh di-config)
+## TP/SL Code Constants (not configurable)
 
 ```python
-TAKE_PROFIT_PCT = Decimal("1.0")   # 2× entry
+TAKE_PROFIT_PCT = Decimal("1.0")   # 2× entry price
 
 SL_TIERS = [
     (500_000, Decimal("0.15")),
@@ -56,18 +56,18 @@ SL_TIERS = [
 ]
 ```
 
-**config.risk tidak boleh punya `stop_loss_pct` atau `take_profit_pct`.**
+**`config.risk` must NOT have `stop_loss_pct` or `take_profit_pct`.**
 
 ---
 
 ## Agent Layer Rules
 
-- `KeyPoolManager` diinstansiasi pertama kali di `main.py` — jika < 3 keys per provider,
-  bot tidak start (`ValueError` di `__init__`)
-- `OrchestratorAgent` wajib berjalan — tidak ada flag `AGENT_ENABLED`
-- Gate threshold: `final_score ≥ 80` untuk lolos ke `stream.agent.approved`
-- Fail-open: agent timeout/error → score sub-agent = 50, bot tetap lanjut
-- Response format sub-agent: `SCORE: 75\nREASON: ...` (bukan JSON)
+- `KeyPoolManager` is instantiated first in `main.py` — if < 3 keys per provider,
+  bot will not start (`ValueError` in `__init__`)
+- `OrchestratorAgent` is mandatory — no `AGENT_ENABLED` flag
+- Gate threshold: `final_score >= 80` to pass to `stream.agent.approved`
+- Fail-open: agent timeout/error → sub-agent score = 50, bot continues
+- Sub-agent response format: `SCORE: 75\nREASON: ...` (not JSON)
 
 ---
 
@@ -83,24 +83,24 @@ SL_TIERS = [
 
 ## PositionTracker Rule
 
-PositionTracker **tidak boleh** menghitung SL/TP. Nilai `stop_loss_price` dan
-`take_profit_price` dibaca langsung dari `fill.get("stop_loss_price")` — sudah
-dihitung oleh RiskManager saat approval dan diteruskan melalui `stream.swaps` → `stream.fills`.
+PositionTracker **must not** calculate SL/TP. The values `stop_loss_price` and
+`take_profit_price` are read directly from `fill.get("stop_loss_price")` — already
+calculated by RiskManager at approval time and forwarded via `stream.swaps` → `stream.fills`.
 
 ---
 
 ## Logging
 
-- Semua komponen menggunakan `logger.bind(component="name")` — bukan bare `logger`
-- Jangan log: `WALLET_KEYPAIR_B64`, `GROQ_API_KEYS`, `GEMINI_API_KEYS`
-- Trade outcome selalu di-log: `symbol`, `pnl_usdc`, `pnl_pct`, `reason`
+- All components use `logger.bind(component="name")` — never bare `logger`
+- Never log: `WALLET_KEYPAIR_B64`, `GROQ_API_KEYS`, `GEMINI_API_KEYS`
+- Trade outcome always logged: `symbol`, `pnl_usdc`, `pnl_pct`, `reason`
 
 ---
 
-## Skills yang Relevan
+## Relevant Skills
 
-Gunakan `@web3-solana-architecture` untuk Redis topology dan stream schema.
-Gunakan `@web3-solana-risk` untuk TP/SL constants dan position sizing.
-Gunakan `@web3-solana-agent` untuk OrchestratorAgent dan KeyPoolManager detail.
-Gunakan `@web3-solana-signal-aggregator` untuk GATE 1 logic.
-Gunakan `@web3-solana` untuk semua safety rules Solana on-chain.
+Use `@[PROJECT_NAME]-architecture` for Redis topology and stream schema.
+Use `@[PROJECT_NAME]-risk` for TP/SL constants and position sizing.
+Use `@[PROJECT_NAME]-agent` for OrchestratorAgent and KeyPoolManager details.
+Use `@[PROJECT_NAME]-signal-aggregator` for GATE 1 logic.
+Use `@[PROJECT_NAME]` for all on-chain safety rules.
