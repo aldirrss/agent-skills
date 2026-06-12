@@ -1,4 +1,4 @@
-# Solana DEX Trading Bot — Roadmap
+# [PROJECT_NAME]— Roadmap
 
 ## Vision
 

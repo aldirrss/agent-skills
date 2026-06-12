@@ -1,4 +1,4 @@
-# Solana DEX Trading Bot — Architecture
+# [PROJECT_NAME] — Architecture
 
 ## Overview
 
