@@ -60,11 +60,6 @@ class SignalAggregator:
         "social_alpha":            8,
     }
 
-    # Circuit breaker keys (written by RiskManager, read-only here)
-    CB_STATE_KEY      = "state.circuit_breaker"
-    CB_DAILY_LOSS_KEY = "state.daily_loss_pct"
-    CB_POSITIONS_KEY  = "state.open_positions_count"
-
     def __init__(self, redis, settings: Settings) -> None:
         self.redis    = redis
         self.settings = settings
@@ -235,29 +230,45 @@ class SignalAggregator:
     # ------------------------------------------------------------------
 
     async def _circuit_breaker_open(self) -> bool:
+        """
+        Returns True if dispatch should be skipped.
+
+        Check 1: bot must be 'running'.
+            Covers all pause reasons — manual pause, daily loss cap, daily profit cap.
+            All of these set state.bot.status = "paused" (RiskManager / CommandListener).
+
+        Check 2: positions full.
+            No point running 4 LLM sub-agents per token when RiskManager will reject
+            every BUY anyway. Read count from state.position.* keys, limit from config.risk.
+        """
         try:
             pipe = self.redis.pipeline()
-            pipe.get(self.CB_STATE_KEY)
-            pipe.get(self.CB_DAILY_LOSS_KEY)
-            pipe.get(self.CB_POSITIONS_KEY)
-            cb_state, daily_loss_raw, positions_raw = await pipe.execute()
+            pipe.get("state.bot.status")
+            pipe.keys("state.position.*")
+            pipe.get("config.risk")
+            bot_status_raw, position_keys, risk_cfg_raw = await pipe.execute()
 
-            if cb_state and cb_state.decode() == "open":
+            # Check 1: bot must be running
+            bot_status = bot_status_raw.decode() if bot_status_raw else "running"
+            if bot_status != "running":
+                self._log.info("bot status='{}' — skipping dispatch", bot_status)
                 return True
 
-            daily_loss_limit = getattr(self.settings, "daily_loss_limit_pct", 5.0)
-            max_positions    = getattr(self.settings, "max_open_positions",    10)
+            # Check 2: max concurrent positions
+            max_concurrent = 5  # code constant fallback
+            if risk_cfg_raw:
+                cfg = json.loads(risk_cfg_raw)
+                max_concurrent = int(cfg.get("max_concurrent_positions", 5))
 
-            if daily_loss_raw:
-                if float(daily_loss_raw.decode()) >= daily_loss_limit:
-                    return True
-
-            if positions_raw:
-                if int(positions_raw.decode()) >= max_positions:
-                    return True
+            open_count = len(position_keys)
+            if open_count >= max_concurrent:
+                self._log.info(
+                    "positions full ({}/{}) — skipping dispatch to save LLM budget",
+                    open_count, max_concurrent,
+                )
+                return True
 
         except Exception as exc:
-            # Key missing or Redis error → treat as closed (fail-safe: assume safe)
             self._log.debug("circuit breaker read error (treating closed): {}", exc)
 
         return False
@@ -302,10 +313,9 @@ tasks = [
 Add to `Settings` (pydantic-settings):
 
 ```python
-gate1_min_strategy_match: int   = 2     # Rule 1: minimum strategy match count
-gate1_max_agent_queue:    int   = 15    # Rule 2: max tokens dispatched per batch
-daily_loss_limit_pct:     float = 5.0   # Rule 3: circuit breaker threshold
-max_open_positions:       int   = 10    # Rule 3: position count ceiling
+gate1_min_strategy_match: int = 2    # Rule 1: minimum strategy match count
+gate1_max_agent_queue:    int = 15   # Rule 2: max tokens dispatched per batch
+# Rule 3 reads state.bot.status and config.risk from Redis — no settings fields needed
 ```
 
 ---
@@ -334,6 +344,6 @@ await redis.xadd("stream.signals", {
 | `agent.queue` | ZSET | cleared after dispatch | SignalAggregator | SignalAggregator |
 | `stream.signals` | STREAM | — | Strategy | SignalAggregator |
 | `stream.agent.eligible` | STREAM | — | SignalAggregator | Orchestrator Agent |
-| `state.circuit_breaker` | STRING | — | RiskManager | SignalAggregator (read-only) |
-| `state.daily_loss_pct` | STRING | — | RiskManager | SignalAggregator (read-only) |
-| `state.open_positions_count` | STRING | — | RiskManager | SignalAggregator (read-only) |
+| `state.bot.status` | STRING | — | RiskManager / CommandListener | SignalAggregator (read-only) |
+| `state.position.*` | STRING (JSON) | — | PositionTracker | SignalAggregator (count only, read-only) |
+| `config.risk` | STRING (JSON) | — | Config loader | SignalAggregator (max_concurrent_positions) |

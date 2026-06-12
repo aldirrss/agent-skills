@@ -20,7 +20,9 @@ Poin kunci:
 - Track match per mint via signal.match.{mint} (Hash, TTL 900s)
 - Gate: minimal 2 strategy match dengan window per strategy sesuai skill
 - Ranking top-15: score = match_count×30 + strategy_weight_bonus + recency_bonus
-- Cek circuit breaker sebelum dispatch
+- Cek circuit breaker sebelum dispatch (keduanya skip seluruh batch jika true):
+  · state.bot.status != "running" → skip (covers pause + daily loss/profit cap)
+  · len(state.position.*) >= config.risk.max_concurrent_positions → skip (posisi penuh, hemat LLM budget)
 - Output: XADD stream.agent.eligible { batch_id, mints: JSON list }
 ```
 

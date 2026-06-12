@@ -31,7 +31,7 @@ SignalAggregator  ← this skill
   ├── HSET signal.match.{mint}  strategy_name → timestamp
   ├── Rule 1: SCARD valid matches >= MIN_STRATEGY_MATCH (2)
   ├── Rule 2: ZADD agent.queue  composite_score  mint  → ZREVRANGE top 15
-  ├── Rule 3: check state.circuit_breaker before enqueuing
+  ├── Rule 3: check state.bot.status + position count before dispatch
   └── XADD stream.agent.eligible  { batch of top-N mints }
 
 Orchestrator Agent
@@ -83,23 +83,34 @@ Strategy weight bonuses:
 | `social_alpha` | +8 |
 
 ### Rule 3 — Circuit Breaker Check
-Before enqueuing any token, read circuit breaker state. If open, drop the entire batch silently
-(do not XADD to `stream.agent.eligible`). Reason is logged to Monitor.
+Before dispatching to Orchestrator, run two checks. If either fails, skip the entire batch
+silently (do not XADD to `stream.agent.eligible`). Reason is logged.
 
+**Check 1 — Bot status:**
 ```python
-# Keys written by RiskManager — read-only here
-state.circuit_breaker       # "open" | "closed"
-state.daily_loss_pct        # float — if >= DAILY_LOSS_LIMIT → treat as open
-state.open_positions_count  # int   — if >= MAX_POSITIONS   → treat as open
+state.bot.status != "running"  →  skip dispatch
 ```
+Covers all pause reasons — manual pause, daily loss cap, daily profit cap.
+All set `state.bot.status = "paused"` (RiskManager / CommandListener).
+
+**Check 2 — Positions full:**
+```python
+len(state.position.*) >= config.risk.max_concurrent_positions  →  skip dispatch
+```
+No point running 4 LLM sub-agents per token when RiskManager will reject every BUY anyway.
+Reads `max_concurrent_positions` from `config.risk` (default: 5).
 
 ## Redis Schema
 
 ```
-signal.match.{mint}          HASH    strategy_name → unix_timestamp (TTL 900s)
-agent.queue                  ZSET    mint → composite_score  (cleared after dispatch)
-stream.signals               STREAM  input  (consumer group: aggregator-group)
-stream.agent.eligible        STREAM  output { mints: [...], batch_id: uuid }
+signal.match.{mint}    HASH    strategy_name → unix_timestamp (TTL 900s)
+agent.queue            ZSET    mint → composite_score  (cleared after dispatch)
+stream.signals         STREAM  input  (consumer group: aggregator-group)
+stream.agent.eligible  STREAM  output { mints: [...], batch_id: uuid }
+
+state.bot.status       STRING  read-only — circuit breaker check (paused/stopped → skip)
+state.position.*       STRING  read-only — position count check (penuh → skip dispatch)
+config.risk            STRING  read-only — max_concurrent_positions
 ```
 
 ## Fail-Safe Behaviours
